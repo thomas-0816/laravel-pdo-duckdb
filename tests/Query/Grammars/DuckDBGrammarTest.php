@@ -278,7 +278,7 @@ it('index hint is ignored in queries', function () {
     expect($results)->toHaveCount(1);
 });
 
-it('supportsSavepoints returns true', function () {
+it('supportsSavepoints returns false', function () {
     $connection = new DuckDbConnection(function () {
         return new PDO('duckdb::memory:');
     });

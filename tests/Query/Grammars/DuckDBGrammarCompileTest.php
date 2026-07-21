@@ -576,10 +576,12 @@ it('compileJoin compiles basic join', function () {
 
     $results = $connection->table('cj1')
         ->join('cj2', 'cj1.id', '=', 'cj2.id')
+        ->select('cj1.id as c1_id', 'cj2.id as c2_id')
         ->get();
 
     expect($results)->toHaveCount(1);
-    expect($results[0]->id)->toBe(1);
+    expect($results[0]->c1_id)->toBe(1);
+    expect($results[0]->c2_id)->toBe(1);
 });
 
 it('compileJoin compiles left join', function () {
@@ -593,9 +595,14 @@ it('compileJoin compiles left join', function () {
 
     $results = $connection->table('clj1')
         ->leftJoin('clj2', 'clj1.id', '=', 'clj2.id')
+        ->select('clj1.id as c1_id', 'clj2.id as c2_id')
         ->get();
 
     expect($results)->toHaveCount(2);
+    expect($results[0]->c1_id)->toBe(1);
+    expect($results[0]->c2_id)->toBe(1);
+    expect($results[1]->c1_id)->toBe(2);
+    expect($results[1]->c2_id)->toBeNull();
 });
 
 it('compileJoin compiles cross join', function () {
@@ -609,9 +616,14 @@ it('compileJoin compiles cross join', function () {
 
     $results = $connection->table('ccj1')
         ->crossJoin('ccj2')
+        ->select('ccj1.id as c1_id', 'ccj2.id as c2_id')
         ->get();
 
     expect($results)->toHaveCount(2);
+    expect($results[0]->c1_id)->toBe(1);
+    expect($results[0]->c2_id)->toBe(1);
+    expect($results[1]->c1_id)->toBe(1);
+    expect($results[1]->c2_id)->toBe(2);
 });
 
 it('compileJoin compiles right join', function () {
@@ -625,9 +637,15 @@ it('compileJoin compiles right join', function () {
 
     $results = $connection->table('crj1')
         ->rightJoin('crj2', 'crj1.id', '=', 'crj2.id')
+        ->select('crj1.id as c1_id', 'crj2.id as c2_id')
+        ->orderBy('c2_id')
         ->get();
 
     expect($results)->toHaveCount(2);
+    expect($results[0]->c1_id)->toBe(1);
+    expect($results[0]->c2_id)->toBe(1);
+    expect($results[1]->c1_id)->toBeNull();
+    expect($results[1]->c2_id)->toBe(2);
 });
 
 it('compileJoin compiles full outer join', function () {
@@ -639,12 +657,17 @@ it('compileJoin compiles full outer join', function () {
     $connection->table('cfj1')->insert([['id' => 1]]);
     $connection->table('cfj2')->insert([['id' => 2]]);
 
-    $grammar = $connection->getQueryGrammar(); // TODO fix
-    $builder = $connection->table('cfj1');
-    $builder->join('cfj2', 'cfj1.id', '=', 'cfj2.id', 'full outer');
-    $sql = $grammar->compileSelect($builder);
+    $results = $connection->table('cfj1')
+        ->join('cfj2', 'cfj1.id', '=', 'cfj2.id', 'full outer')
+        ->select('cfj1.id as c1_id', 'cfj2.id as c2_id')
+        ->orderBy('c1_id')
+        ->get();
 
-    expect($sql)->toContain('full outer join');
+    expect($results)->toHaveCount(2);
+    expect($results[0]->c1_id)->toBe(1);
+    expect($results[0]->c2_id)->toBeNull();
+    expect($results[1]->c1_id)->toBeNull();
+    expect($results[1]->c2_id)->toBe(2);
 });
 
 it('compileJoin compiles where in join', function () {
@@ -660,10 +683,13 @@ it('compileJoin compiles where in join', function () {
         ->join('cwj2', function ($join) {
             $join->on('cwj1.id', '=', 'cwj2.id')->where('cwj2.val', '>', 15);
         })
+        ->select('cwj1.id as c1_id', 'cwj2.id as c2_id', 'cwj2.val')
         ->get();
 
     expect($results)->toHaveCount(1);
-    expect($results[0]->id)->toBe(2);
+    expect($results[0]->c1_id)->toBe(2);
+    expect($results[0]->c2_id)->toBe(2);
+    expect($results[0]->val)->toBe(20);
 });
 
 it('compileNestedJoins in join clause', function () {
@@ -680,8 +706,11 @@ it('compileNestedJoins in join clause', function () {
     $results = $connection->table('cnj1')
         ->join('cnj2', 'cnj1.id', '=', 'cnj2.id')
         ->join('cnj3', 'cnj1.id', '=', 'cnj3.id')
+        ->select('cnj1.id as c1_id', 'cnj2.id as c2_id', 'cnj3.id as c3_id')
         ->get();
 
     expect($results)->toHaveCount(1);
-    expect($results[0]->id)->toBe(1);
+    expect($results[0]->c1_id)->toBe(1);
+    expect($results[0]->c2_id)->toBe(1);
+    expect($results[0]->c3_id)->toBe(1);
 });

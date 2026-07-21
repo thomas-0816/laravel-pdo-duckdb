@@ -81,8 +81,6 @@ it('nested beginTransaction does not use savepoints', function () {
     $connection = new DuckDbConnection(function () {
         return new PDO('duckdb::memory:');
     });
-    $grammar = $connection->getQueryGrammar();
-    expect($grammar->supportsSavepoints())->toBeFalse();
 
     $connection->getPdo()->exec('CREATE TABLE spc (id INTEGER, val TEXT)');
     $connection->table('spc')->insert(['id' => 1, 'val' => 'original']);

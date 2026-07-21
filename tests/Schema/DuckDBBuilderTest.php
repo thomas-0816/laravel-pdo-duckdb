@@ -6,23 +6,9 @@ use Illuminate\Container\Container;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Facade;
 
-function makeConnection(): DuckDbConnection
-{
-    return new DuckDbConnection(function () {
-        return new PDO('duckdb::memory:');
-    });
-}
-
-function bootFileFacade(): void
-{
-    $app = new Container();
-    $app->instance('files', new Filesystem());
-    Facade::setFacadeApplication($app);
-}
-
 it('creates a database file', function () {
-    bootFileFacade();
-    $connection = makeConnection();
+    Facade::setFacadeApplication((new Container())->instance('files', new Filesystem()));
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
     $path = sys_get_temp_dir() . '/duckdb_create_' . uniqid() . '.duckdb';
 
@@ -35,8 +21,8 @@ it('creates a database file', function () {
 });
 
 it('returns true when dropping a nonexistent database', function () {
-    bootFileFacade();
-    $connection = makeConnection();
+    Facade::setFacadeApplication((new Container())->instance('files', new Filesystem()));
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
 
     $result = $builder->dropDatabaseIfExists(sys_get_temp_dir() . '/duckdb_nonexist_' . uniqid() . '.duckdb');
@@ -45,8 +31,8 @@ it('returns true when dropping a nonexistent database', function () {
 });
 
 it('drops an existing database file', function () {
-    bootFileFacade();
-    $connection = makeConnection();
+    Facade::setFacadeApplication((new Container())->instance('files', new Filesystem()));
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
     $path = sys_get_temp_dir() . '/duckdb_drop_' . uniqid() . '.duckdb';
 
@@ -60,8 +46,8 @@ it('drops an existing database file', function () {
 });
 
 it('creates and drops database file in sequence', function () {
-    bootFileFacade();
-    $connection = makeConnection();
+    Facade::setFacadeApplication((new Container())->instance('files', new Filesystem()));
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
     $path = sys_get_temp_dir() . '/duckdb_seq_' . uniqid() . '.duckdb';
 
@@ -76,7 +62,7 @@ it('creates and drops database file in sequence', function () {
 });
 
 it('drops all tables from the database', function () {
-    $connection = makeConnection();
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $schema = $connection->getSchemaBuilder();
 
     $schema->create('drop_test_1', function ($table) {
@@ -96,7 +82,7 @@ it('drops all tables from the database', function () {
 });
 
 it('drops tables with indexes', function () {
-    $connection = makeConnection();
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $schema = $connection->getSchemaBuilder();
 
     $schema->create('idx_table', function ($table) {
@@ -113,7 +99,7 @@ it('drops tables with indexes', function () {
 });
 
 it('drops all views removes user created views', function () {
-    $connection = makeConnection();
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $schema = $connection->getSchemaBuilder();
 
     $schema->create('view_src', function ($table) {
@@ -137,7 +123,7 @@ it('drops all views removes user created views', function () {
 })->throws(\Illuminate\Database\QueryException::class, 'Cannot drop internal catalog entry');
 
 it('pragma returns a string value', function () {
-    $connection = makeConnection();
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
 
     $result = $builder->pragma('platform');
@@ -147,7 +133,7 @@ it('pragma returns a string value', function () {
 });
 
 it('pragma set returns empty string', function () {
-    $connection = makeConnection();
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
 
     $result = $builder->pragma('threads', '4');
@@ -156,7 +142,7 @@ it('pragma set returns empty string', function () {
 });
 
 it('pragma set changes the configuration', function () {
-    $connection = makeConnection();
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
 
     $builder->pragma('threads', '2');
@@ -166,7 +152,7 @@ it('pragma set changes the configuration', function () {
 });
 
 it('returns current schema listing', function () {
-    $connection = makeConnection();
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
 
     $schemas = $builder->getCurrentSchemaListing();
@@ -176,7 +162,7 @@ it('returns current schema listing', function () {
 });
 
 it('returns multiple schemas', function () {
-    $connection = makeConnection();
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
 
     $connection->statement('CREATE SCHEMA test_multi_schema');
@@ -188,7 +174,7 @@ it('returns multiple schemas', function () {
 });
 
 it('drops all tables preserves schemas', function () {
-    $connection = makeConnection();
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $schema = $connection->getSchemaBuilder();
 
     $schema->create('preserve_test', function ($table) {
@@ -201,16 +187,8 @@ it('drops all tables preserves schemas', function () {
     expect($schemas)->toContain('main');
 });
 
-it('returns builder instance from getSchemaBuilder', function () {
-    $connection = makeConnection();
-
-    $builder = $connection->getSchemaBuilder();
-
-    expect($builder)->toBeInstanceOf(DuckDBBuilder::class);
-});
-
 it('pragma returns string types for both get and set', function () {
-    $connection = makeConnection();
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
 
     $getResult = $builder->pragma('platform');

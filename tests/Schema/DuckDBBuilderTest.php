@@ -1,13 +1,14 @@
 <?php
 
 use DuckDb\DuckDbConnection;
-use DuckDb\Schema\DuckDBBuilder;
 use Illuminate\Container\Container;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Facade;
 
 it('creates a database file', function () {
-    Facade::setFacadeApplication((new Container())->instance('files', new Filesystem()));
+    $app = new Container();
+    $app->instance('files', new Filesystem());
+    Facade::setFacadeApplication($app);
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
     $path = sys_get_temp_dir() . '/duckdb_create_' . uniqid() . '.duckdb';
@@ -21,7 +22,9 @@ it('creates a database file', function () {
 });
 
 it('returns true when dropping a nonexistent database', function () {
-    Facade::setFacadeApplication((new Container())->instance('files', new Filesystem()));
+    $app = new Container();
+    $app->instance('files', new Filesystem());
+    Facade::setFacadeApplication($app);
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
 
@@ -31,7 +34,9 @@ it('returns true when dropping a nonexistent database', function () {
 });
 
 it('drops an existing database file', function () {
-    Facade::setFacadeApplication((new Container())->instance('files', new Filesystem()));
+    $app = new Container();
+    $app->instance('files', new Filesystem());
+    Facade::setFacadeApplication($app);
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
     $path = sys_get_temp_dir() . '/duckdb_drop_' . uniqid() . '.duckdb';
@@ -46,7 +51,9 @@ it('drops an existing database file', function () {
 });
 
 it('creates and drops database file in sequence', function () {
-    Facade::setFacadeApplication((new Container())->instance('files', new Filesystem()));
+    $app = new Container();
+    $app->instance('files', new Filesystem());
+    Facade::setFacadeApplication($app);
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $builder = $connection->getSchemaBuilder();
     $path = sys_get_temp_dir() . '/duckdb_seq_' . uniqid() . '.duckdb';

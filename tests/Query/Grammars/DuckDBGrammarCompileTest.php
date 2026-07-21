@@ -461,15 +461,12 @@ it('compileTruncate returns delete from SQL', function () {
     $connection = new DuckDbConnection(function () {
         return new PDO('duckdb::memory:');
     });
-    $grammar = $connection->getQueryGrammar(); // TODO fix
     $connection->getPdo()->exec('CREATE TABLE ct (id INTEGER)');
-    $builder = $connection->table('ct');
-    $result = $grammar->compileTruncate($builder);
+    $connection->table('ct')->insert([['id' => 1], ['id' => 2]]);
 
-    expect($result)->toBeArray();
-    $key = array_key_first($result);
-    expect($key)->toContain('delete from');
-    expect($key)->toContain('ct');
+    $connection->table('ct')->truncate();
+
+    expect($connection->table('ct')->count())->toBe(0);
 });
 
 it('compileInsertOrIgnore appends on conflict do nothing', function () {
@@ -515,28 +512,38 @@ it('compileUpsert contains on conflict do update set', function () {
     $connection = new DuckDbConnection(function () {
         return new PDO('duckdb::memory:');
     });
-    $grammar = $connection->getQueryGrammar(); // TODO fix
     $connection->getPdo()->exec('CREATE TABLE cu (id INTEGER PRIMARY KEY, name TEXT)');
-    $builder = $connection->table('cu');
-    $sql = $grammar->compileUpsert($builder, [['id' => 1, 'name' => 'test']], ['id'], ['name']);
+    $connection->table('cu')->insert([['id' => 1, 'name' => 'original']]);
 
-    expect($sql)->toContain('on conflict');
-    expect($sql)->toContain('do update set');
+    $connection->table('cu')->upsert(
+        [['id' => 1, 'name' => 'updated']],
+        ['id'],
+        ['name'],
+    );
+
+    expect($connection->table('cu')->where('id', 1)->value('name'))->toBe('updated');
 });
 
 it('compileInsertUsing builds correct SQL', function () {
     $connection = new DuckDbConnection(function () {
         return new PDO('duckdb::memory:');
     });
-    $grammar = $connection->getQueryGrammar(); // TODO fix
     $connection->getPdo()->exec('CREATE TABLE cius (id INTEGER, name TEXT)');
     $connection->getPdo()->exec('CREATE TABLE cius2 (id INTEGER, name TEXT)');
-    $builder = $connection->table('cius');
-    $subQuery = $connection->table('cius2')->where('id', 1);
-    $sql = $grammar->compileInsertUsing($builder, ['id', 'name'], $subQuery->toSql());
+    $connection->table('cius2')->insert([
+        ['id' => 1, 'name' => 'alice'],
+        ['id' => 2, 'name' => 'bob'],
+    ]);
 
-    expect($sql)->toContain('insert into');
-    expect($sql)->toContain('select');
+    $connection->table('cius')->insertUsing(
+        ['id', 'name'],
+        $connection->table('cius2')->where('id', 1),
+    );
+
+    $results = $connection->table('cius')->get();
+    expect($results)->toHaveCount(1);
+    expect($results[0]->id)->toBe(1);
+    expect($results[0]->name)->toBe('alice');
 });
 
 it('compileInsertOrIgnoreUsing builds correct SQL', function () {
@@ -557,12 +564,16 @@ it('compileSelect with aggregate returns aggregate SQL', function () {
     $connection = new DuckDbConnection(function () {
         return new PDO('duckdb::memory:');
     });
-    $grammar = $connection->getQueryGrammar(); // TODO fix
     $connection->getPdo()->exec('CREATE TABLE csagg (val INTEGER)');
-    $builder = $connection->table('csagg')->selectRaw('count(*) as aggregate');
-    $sql = $grammar->compileSelect($builder);
+    $connection->table('csagg')->insert([['val' => 10], ['val' => 20], ['val' => 30]]);
 
-    expect($sql)->toContain('select');
+    $count = $connection->table('csagg')->count();
+    $sum = $connection->table('csagg')->sum('val');
+    $avg = $connection->table('csagg')->avg('val');
+
+    expect($count)->toBe(3);
+    expect($sum)->toEqual(60);
+    expect($avg)->toEqual(20.0);
 });
 
 it('compileJoin compiles basic join', function () {

@@ -211,17 +211,6 @@ class DuckDBGrammar extends Grammar
         ], $indexes);
     }
 
-    /** @inheritDoc */
-    public function compileChange(Blueprint $blueprint, Fluent $command): string
-    {
-        return '';
-    }
-
-    public function compilePrimary(Blueprint $blueprint, Fluent $command): string
-    {
-        return '';
-    }
-
     public function compileUnique(Blueprint $blueprint, Fluent $command): string
     {
         [$schema, $table] = $this->connection->getSchemaBuilder()->parseSchemaAndTable($blueprint->getTable());

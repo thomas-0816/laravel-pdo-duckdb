@@ -290,34 +290,6 @@ it('compileForeignKeys queries key_column_usage', function () {
     expect($sql)->toContain("'cascade'");
 });
 
-it('compileChange returns empty string', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 't');
-    $command = new Fluent(['column' => new Fluent(['name' => 'id', 'type' => 'integer'])]);
-
-    expect($grammar->compileChange($blueprint, $command))->toBe('');
-});
-
-it('compilePrimary returns empty string', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 't');
-    $command = new Fluent(['columns' => ['id']]);
-
-    expect($grammar->compilePrimary($blueprint, $command))->toBe('');
-});
-
 it('compileDropAllTables returns select query with correct structure', function () {
     $grammar = new DuckDBGrammar((function () {
         return new DuckDbConnection(function () {

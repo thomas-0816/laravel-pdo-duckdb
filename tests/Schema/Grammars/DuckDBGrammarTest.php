@@ -343,86 +343,6 @@ it('compileDropAllViews defaults to main schema', function () {
     expect($sql)->toContain("'main'");
 });
 
-it('compileRebuild returns vacuum statement', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
-
-    expect($grammar->compileRebuild('main'))->toBe("vacuum 'main'");
-});
-
-it('compileRebuild defaults to main schema', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
-
-    expect($grammar->compileRebuild())->toBe("vacuum 'main'");
-});
-
-it('compileSpatialIndex throws RuntimeException', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 't');
-    $command = new Fluent(['index' => 'idx', 'columns' => ['geom']]);
-
-    $grammar->compileSpatialIndex($blueprint, $command);
-})->throws(RuntimeException::class, 'spatial indexes');
-
-it('compileDropPrimary throws RuntimeException', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 't');
-    $command = new Fluent(['index' => 'primary']);
-
-    $grammar->compileDropPrimary($blueprint, $command);
-})->throws(RuntimeException::class, 'dropping primary keys');
-
-it('compileDropSpatialIndex throws RuntimeException', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 't');
-    $command = new Fluent(['index' => 'idx']);
-
-    $grammar->compileDropSpatialIndex($blueprint, $command);
-})->throws(RuntimeException::class, 'spatial indexes');
-
-it('compileEnableForeignKeyConstraints throws RuntimeException', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
-    $grammar->compileEnableForeignKeyConstraints();
-})->throws(RuntimeException::class, 'foreign key constraints');
-
-it('compileDisableForeignKeyConstraints throws RuntimeException', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
-    $grammar->compileDisableForeignKeyConstraints();
-})->throws(RuntimeException::class, 'foreign key constraints');
-
 it('typeComputed throws RuntimeException via blueprint', function () {
     $connection = (function () {
         return new DuckDbConnection(function () {
@@ -434,35 +354,7 @@ it('typeComputed throws RuntimeException via blueprint', function () {
         $table->string('name');
         $table->computed('doubled', '1 + 1');
     });
-})->throws(RuntimeException::class, 'virtualAs / storedAs');
-
-it('compileDropForeign throws when columns are empty', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 't');
-    $command = new Fluent(['columns' => []]);
-
-    $grammar->compileDropForeign($blueprint, $command);
-})->throws(RuntimeException::class, 'dropping foreign keys by name');
-
-it('compileDropForeign returns empty string when columns provided', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 't');
-    $command = new Fluent(['columns' => ['user_id']]);
-
-    expect($grammar->compileDropForeign($blueprint, $command))->toBe('');
-});
+})->throws(RuntimeException::class);
 
 it('creates table with varchar columns via raw SQL', function () {
     $connection = (function () {
@@ -1803,20 +1695,6 @@ it('compileCreate compiles a complete table with multiple features', function ()
     expect($sql)->toContain('boolean');
 });
 
-it('compileDropForeign returns empty string for non-empty columns', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 'fk_table');
-    $command = new Fluent(['columns' => ['col1', 'col2']]);
-
-    expect($grammar->compileDropForeign($blueprint, $command))->toBe('');
-});
-
 it('compileForeign compiles with compound columns', function () {
     $connection = (function () {
         return new DuckDbConnection(function () {
@@ -1947,16 +1825,6 @@ it('compileDropIndex compiles drop with schema', function () {
 
     expect($sql)->toContain('drop index');
     expect($sql)->toContain('idx_to_drop');
-});
-
-it('compileRebuild with custom schema', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
-
-    expect($grammar->compileRebuild('custom'))->toBe("vacuum 'custom'");
 });
 
 it('compileDropAllTables with custom schema', function () {

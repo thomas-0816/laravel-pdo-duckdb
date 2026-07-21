@@ -63,7 +63,8 @@ class DuckDBGrammar extends Grammar
     public function compileColumns($schema, $table)
     {
         return sprintf(
-            "select column_name as name, data_type as type, is_nullable = 'YES' as \"nullable\", column_default as \"default\", ordinal_position as \"cid\" from information_schema.columns where table_name = %s and table_schema = %s order by ordinal_position asc",
+            "select column_name as name, data_type as type, is_nullable = 'YES' as \"nullable\", column_default as \"default\", ordinal_position as \"cid\" "
+            . "from information_schema.columns where table_name = %s and table_schema = %s order by ordinal_position asc",
             $this->quoteString($table),
             $this->quoteString($schema ?? 'main')
         );
@@ -95,7 +96,9 @@ class DuckDBGrammar extends Grammar
     public function compileForeignKeys($schema, $table)
     {
         return sprintf(
-            "select group_concat(constraint_column_name) as columns, %s as foreign_schema, foreign_table_name as foreign_table, group_concat(foreign_column_name) as foreign_columns, 'cascade' as on_update, 'cascade' as on_delete from information_schema.key_column_usage where table_name = %s and table_schema = %s and foreign_table_name is not null group by constraint_name, foreign_table_name",
+            "select group_concat(constraint_column_name) as columns, %s as foreign_schema, foreign_table_name as foreign_table, "
+            . "group_concat(foreign_column_name) as foreign_columns, 'cascade' as on_update, 'cascade' as on_delete from information_schema.key_column_usage "
+            . "where table_name = %s and table_schema = %s and foreign_table_name is not null group by constraint_name, foreign_table_name",
             $this->quoteString($schema ?? 'main'),
             $this->quoteString($table),
             $this->quoteString($schema ?? 'main')
@@ -161,56 +164,6 @@ class DuckDBGrammar extends Grammar
         );
     }
 
-    public function compileAlter(Blueprint $blueprint, Fluent $command): array
-    {
-        $columnNames = [];
-        $autoIncrementColumn = null;
-
-        $columns = array_map(function ($column) use ($blueprint, &$columnNames, &$autoIncrementColumn) {
-            $name = $this->wrap($column);
-
-            $autoIncrementColumn = $column->autoIncrement ? $column->name : $autoIncrementColumn;
-
-            if (is_null($column->virtualAs) && is_null($column->virtualAsJson)
-                && is_null($column->storedAs) && is_null($column->storedAsJson)) {
-                $columnNames[] = $name;
-            }
-
-            return $this->addModifiers(
-                $this->wrap($column) . ' ' . ($column->full_type_definition ?? $this->getType($column)),
-                $blueprint,
-                $column
-            );
-        }, $blueprint->getState()->getColumns());
-
-        $indexes = array_map(
-            fn($index) => $this->{'compile' . ucfirst($index->name)}($blueprint, $index),
-            array_values(array_filter(
-                $blueprint->getState()->getIndexes(),
-                fn($index) => ! str_starts_with('duckdb_', $index->index)
-            ))
-        );
-
-        [, $tableName] = $this->connection->getSchemaBuilder()->parseSchemaAndTable($blueprint->getTable());
-        $tempTable = $this->wrapTable($blueprint, '__temp__' . $this->connection->getTablePrefix());
-        $table = $this->wrapTable($blueprint);
-        $columnNames = implode(', ', $columnNames);
-
-        /** @var list<string> */
-        return array_merge([
-            sprintf(
-                'create table %s (%s%s%s)',
-                $tempTable,
-                implode(', ', $columns),
-                $this->addForeignKeys($blueprint->getState()->getForeignKeys()),
-                $autoIncrementColumn ? '' : $this->addPrimaryKeys($blueprint->getState()->getPrimaryKey())
-            ),
-            sprintf('insert into %s (%s) select %s from %s', $tempTable, $columnNames, $columnNames, $table),
-            sprintf('drop table %s', $table),
-            sprintf('alter table %s rename to %s', $tempTable, $this->wrapTable($tableName)),
-        ], $indexes);
-    }
-
     public function compileUnique(Blueprint $blueprint, Fluent $command): string
     {
         [$schema, $table] = $this->connection->getSchemaBuilder()->parseSchemaAndTable($blueprint->getTable());
@@ -235,11 +188,6 @@ class DuckDBGrammar extends Grammar
             $this->wrapTable($table),
             $this->columnize($command->columns)
         );
-    }
-
-    public function compileSpatialIndex(Blueprint $blueprint, Fluent $command): void
-    {
-        throw new RuntimeException('The database driver in use does not support spatial indexes.');
     }
 
     /** @inheritDoc */
@@ -278,11 +226,6 @@ class DuckDBGrammar extends Grammar
         );
     }
 
-    public function compileRebuild(?string $schema = null): string
-    {
-        return 'vacuum ' . $this->quoteString($schema ?? 'main');
-    }
-
     public function compileDropColumn(Blueprint $blueprint, Fluent $command): array
     {
         $table = $this->wrapTable($blueprint);
@@ -291,11 +234,6 @@ class DuckDBGrammar extends Grammar
 
         /** @var list<string> */
         return array_map(fn($column) => 'alter table ' . $table . ' ' . $column, $columns);
-    }
-
-    public function compileDropPrimary(Blueprint $blueprint, Fluent $command): void
-    {
-        throw new RuntimeException('DuckDB does not support dropping primary keys.');
     }
 
     public function compileDropUnique(Blueprint $blueprint, Fluent $command): string
@@ -314,26 +252,9 @@ class DuckDBGrammar extends Grammar
         );
     }
 
-    public function compileDropSpatialIndex(Blueprint $blueprint, Fluent $command): void
-    {
-        throw new RuntimeException('The database driver in use does not support spatial indexes.');
-    }
-
-    public function compileDropForeign(Blueprint $blueprint, Fluent $command): string
-    {
-        if (empty($command->columns)) {
-            throw new RuntimeException('This database driver does not support dropping foreign keys by name.');
-        }
-
-        // Handled on table alteration...
-        return '';
-    }
-
     public function compileRename(Blueprint $blueprint, Fluent $command): string
     {
-        $from = $this->wrapTable($blueprint);
-
-        return "alter table {$from} rename to " . $this->wrapTable($command->to);
+        return "alter table {$this->wrapTable($blueprint)} rename to {$this->wrapTable($command->to)}";
     }
 
     public function compileRenameIndex(Blueprint $blueprint, Fluent $command): array
@@ -367,16 +288,6 @@ class DuckDBGrammar extends Grammar
                 new IndexDefinition(['index' => $command->to, 'columns' => $index['columns']])
             ),
         ];
-    }
-
-    public function compileEnableForeignKeyConstraints(): string
-    {
-        throw new RuntimeException('DuckDB does not support enabling or disabling foreign key constraints.');
-    }
-
-    public function compileDisableForeignKeyConstraints(): string
-    {
-        throw new RuntimeException('DuckDB does not support enabling or disabling foreign key constraints.');
     }
 
     protected function typeChar(Fluent $column): string
@@ -555,11 +466,6 @@ class DuckDBGrammar extends Grammar
         return 'geometry';
     }
 
-    protected function typeComputed(Fluent $column): void
-    {
-        throw new RuntimeException('This database driver requires a type, see the virtualAs / storedAs modifiers.');
-    }
-
     protected function modifyVirtualAs(Blueprint $blueprint, Fluent $column): ?string
     {
         if (! is_null($virtualAs = $column->virtualAsJson)) {
@@ -567,11 +473,11 @@ class DuckDBGrammar extends Grammar
                 $virtualAs = $this->wrapJsonSelector($virtualAs);
             }
 
-            return " as ({$virtualAs})";
+            return " as ({$virtualAs}) virtual";
         }
 
         if (! is_null($virtualAs = $column->virtualAs)) {
-            return " as ({$this->getValue($virtualAs)})";
+            return " as ({$this->getValue($virtualAs)}) virtual";
         }
 
         return null;

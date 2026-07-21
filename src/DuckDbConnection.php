@@ -20,12 +20,6 @@ class DuckDbConnection extends Connection
     }
 
     /** {@inheritdoc} */
-    protected function executeBeginTransactionStatement()
-    {
-        $this->getPdo()->beginTransaction();
-    }
-
-    /** {@inheritdoc} */
     protected function escapeBinary($value)
     {
         $hex = bin2hex($value);

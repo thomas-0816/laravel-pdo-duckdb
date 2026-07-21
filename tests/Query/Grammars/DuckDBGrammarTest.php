@@ -955,17 +955,6 @@ it('whereNotLike with caseSensitive true uses not like', function () {
     expect($names)->toBe(['Hello', 'WORLD']);
 });
 
-it('compileIndexHint returns empty string', function () {
-    $connection = new DuckDbConnection(function () {
-        return new PDO('duckdb::memory:');
-    });
-    $connection->getPdo()->exec('CREATE TABLE ih2 (id INTEGER)');
-    $connection->table('ih2')->insert(['id' => 1]);
-
-    $results = $connection->table('ih2')->useIndex('idx')->get();
-    expect($results)->toHaveCount(1);
-});
-
 it('update with join and where on main query compiles correctly', function () {
     $connection = new DuckDbConnection(function () {
         return new PDO('duckdb::memory:');

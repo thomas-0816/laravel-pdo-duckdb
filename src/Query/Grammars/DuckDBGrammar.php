@@ -18,18 +18,6 @@ class DuckDBGrammar extends Grammar
     ];
 
     /** {@inheritdoc} */
-    protected function compileLock(Builder $query, $value)
-    {
-        return '';
-    }
-
-    /** {@inheritdoc} */
-    protected function wrapUnion($sql)
-    {
-        return 'select * from (' . $sql . ')';
-    }
-
-    /** {@inheritdoc} */
     protected function whereLike(Builder $query, $where)
     {
         $where['operator'] = $where['not']
@@ -79,11 +67,6 @@ class DuckDBGrammar extends Grammar
         return "{$type}({$this->wrap($where['column'])}) {$where['operator']} {$value}";
     }
 
-    protected function compileIndexHint(): string
-    {
-        return '';
-    }
-
     /** {@inheritdoc} */
     protected function compileJsonLength($column, $operator, $value)
     {
@@ -98,12 +81,6 @@ class DuckDBGrammar extends Grammar
         [$field, $path] = $this->wrapJsonFieldAndPath($column);
 
         return 'json_contains(' . $field . $path . ', ' . $value . ')';
-    }
-
-    /** {@inheritdoc} */
-    public function prepareBindingForJsonContains($binding)
-    {
-        return is_array($binding) ? json_encode($binding) : $binding;
     }
 
     /** {@inheritdoc} */
@@ -127,9 +104,7 @@ class DuckDBGrammar extends Grammar
     /** {@inheritdoc} */
     public function compileInsertOrIgnore(Builder $query, array $values)
     {
-        $insert = $this->compileInsert($query, $values);
-
-        return preg_replace('/^insert\s+into/', 'insert into', $insert) . ' on conflict do nothing';
+        return $this->compileInsert($query, $values) . ' on conflict do nothing';
     }
 
     /** {@inheritdoc} */
@@ -146,9 +121,7 @@ class DuckDBGrammar extends Grammar
     /** {@inheritdoc} */
     public function compileInsertOrIgnoreUsing(Builder $query, array $columns, string $sql)
     {
-        $insert = $this->compileInsertUsing($query, $columns, $sql);
-
-        return preg_replace('/^insert\s+into/', 'insert into', $insert) . ' on conflict do nothing';
+        return $this->compileInsertUsing($query, $columns, $sql) . ' on conflict do nothing';
     }
 
     /** {@inheritdoc} */

@@ -76,12 +76,11 @@ class DuckDBGrammar extends Grammar
     {
         return sprintf(
             "select name, group_concat(\"column\") as columns, \"unique\", \"primary\" from ("
-            . "select i.index_name as name, ic.column_name as \"column\", i.is_unique as \"unique\", 0 as \"primary\""
-            . " from information_schema.index_columns ic"
-            . " join information_schema.indexes i on ic.index_name = i.index_name and ic.table_name = i.table_name and ic.schema_name = i.schema_name"
-            . " where ic.table_name = %s and ic.schema_name = %s"
+            . "select i.index_name as name, list_aggregate(list_transform(string_split(i.expressions, ','), x -> replace(replace(replace(replace(trim(x), '[', ''), ']', ''), chr(39), ''), chr(34), '')), 'string_agg', ',') as \"column\", i.is_unique as \"unique\", i.is_primary as \"primary\""
+            . " from duckdb_indexes() i"
+            . " where i.table_name = %s and i.schema_name = %s and i.is_primary = false"
             . " union all"
-            . " select c.constraint_name as name, kcu.column_name as \"column\", 1 as \"unique\", 1 as \"primary\""
+            . " select tc.constraint_name as name, kcu.column_name as \"column\", 1 as \"unique\", 1 as \"primary\""
             . " from information_schema.table_constraints tc"
             . " join information_schema.key_column_usage kcu on tc.constraint_name = kcu.constraint_name and tc.table_name = kcu.table_name and tc.table_schema = kcu.table_schema"
             . " where tc.table_name = %s and tc.table_schema = %s and tc.constraint_type = 'PRIMARY KEY'"
@@ -97,9 +96,9 @@ class DuckDBGrammar extends Grammar
     public function compileForeignKeys($schema, $table)
     {
         return sprintf(
-            "select group_concat(constraint_column_name) as columns, %s as foreign_schema, foreign_table_name as foreign_table, "
-            . "group_concat(foreign_column_name) as foreign_columns, 'cascade' as on_update, 'cascade' as on_delete from information_schema.key_column_usage "
-            . "where table_name = %s and table_schema = %s and foreign_table_name is not null group by constraint_name, foreign_table_name",
+            "select list_aggregate(constraint_column_names, 'string_agg', ',') as columns, %s as foreign_schema, referenced_table as foreign_table, "
+            . "list_aggregate(referenced_column_names, 'string_agg', ',') as foreign_columns, 'cascade' as on_update, 'cascade' as on_delete from duckdb_constraints() "
+            . "where table_name = %s and schema_name = %s and constraint_type = 'FOREIGN KEY'",
             $this->quoteString($schema ?? 'main'),
             $this->quoteString($table),
             $this->quoteString($schema ?? 'main')

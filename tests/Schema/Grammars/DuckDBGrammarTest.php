@@ -2758,7 +2758,7 @@ it('change column to varchar with length', function () {
     $connection->table('chg_varchar_len')->insert([['id' => 1, 'code' => 12345]]);
 
     $connection->getSchemaBuilder()->table('chg_varchar_len', function (Blueprint $table) {
-        $table->string('code', 100);
+        $table->string('code', 100)->change();
     });
 
     $col = $connection->getPdo()->query(
@@ -2815,7 +2815,7 @@ it('change column on table with primary key', function () {
     $connection->table('chg_pk')->insert([['id' => 1, 'name' => 'test']]);
 
     $connection->getSchemaBuilder()->table('chg_pk', function (Blueprint $table) {
-        $table->text('name');
+        $table->text('name')->change();
     });
 
     expect($connection->table('chg_pk')->where('id', 1)->value('name'))->toBe('test');

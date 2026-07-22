@@ -29,7 +29,7 @@ class DuckDBGrammar extends Grammar
     public function compileTableExists($schema, $table)
     {
         return sprintf(
-            "select exists (select 1 from information_schema.tables where table_name = %s and table_schema = %s and table_type = 'BASE TABLE') as \"exists\"",
+            "select exists (select 1 from duckdb_tables() where table_name = %s and schema_name = %s) as \"exists\"",
             $this->quoteString($table),
             $this->quoteString($schema ?? 'main')
         );
@@ -38,15 +38,15 @@ class DuckDBGrammar extends Grammar
     /** @inheritDoc */
     public function compileTables($schema)
     {
-        $sql = 'select table_name as name, table_schema as schema'
-            . ' from information_schema.tables as t where'
+        $sql = 'select table_name as name, schema_name as schema'
+            . ' from duckdb_tables() as t where'
             . (match (true) {
-                ! empty($schema) && is_array($schema) => ' t.table_schema in (' . $this->quoteString($schema) . ') and',
-                ! empty($schema) => ' t.table_schema = ' . $this->quoteString($schema) . ' and',
+                ! empty($schema) && is_array($schema) => ' t.schema_name in (' . $this->quoteString($schema) . ') and',
+                ! empty($schema) => ' t.schema_name = ' . $this->quoteString($schema) . ' and',
                 default => '',
             })
-            . " t.table_type = 'BASE TABLE' "
-            . 'order by t.table_schema, t.table_name';
+            . ' not t.internal '
+            . 'order by t.schema_name, t.table_name';
 
         return $sql;
     }
@@ -322,7 +322,7 @@ class DuckDBGrammar extends Grammar
     public function compileDropAllTables(?string $schema = null): string
     {
         return sprintf(
-            "select 'drop table if exists ' || '\"' || table_schema || '\".\"' || table_name || '\"' || ';' from information_schema.tables where table_schema = %s and table_type = 'BASE TABLE'",
+            "select 'drop table if exists ' || '\"' || schema_name || '\".\"' || table_name || '\"' || ';' from duckdb_tables() where schema_name = %s and not internal",
             $this->quoteString($schema ?? 'main')
         );
     }

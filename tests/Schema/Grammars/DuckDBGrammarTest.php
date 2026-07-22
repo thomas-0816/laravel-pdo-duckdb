@@ -248,7 +248,7 @@ it('getForeignKeys returns foreign keys for a table', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
     $connection->getSchemaBuilder()->create('fk_query_parent', function (Blueprint $table) {
-        $table->integer('id')->unique();
+        $table->bigInteger('id')->unique();
     });
 
     $connection->getSchemaBuilder()->create('fk_query_child', function (Blueprint $table) {
@@ -813,7 +813,7 @@ it('compileForeign creates a foreign key constraint', function () {
     })();
 
     $connection->getSchemaBuilder()->create('fk_parent', function (Blueprint $table) {
-        $table->integer('id')->unsigned();
+        $table->bigInteger('id')->unsigned()->unique();
         $table->string('name');
     });
 
@@ -1612,13 +1612,14 @@ it('compileForeign creates compound foreign key', function () {
     $connection->getSchemaBuilder()->create('compound_parent', function (Blueprint $table) {
         $table->integer('id')->unsigned();
         $table->integer('parent_type');
+        $table->unique(['id', 'parent_type']);
     });
 
     $connection->getSchemaBuilder()->create('compound_child', function (Blueprint $table) {
         $table->integer('id')->unsigned();
         $table->integer('parent_id');
         $table->integer('parent_type');
-        $table->foreign(['parent_id', 'parent_type'])->references(['id', 'type'])->on('compound_parent');
+        $table->foreign(['parent_id', 'parent_type'])->references(['id', 'parent_type'])->on('compound_parent');
     });
 
     $indexes = $connection->getPdo()->query(

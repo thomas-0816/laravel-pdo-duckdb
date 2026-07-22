@@ -69,8 +69,8 @@ class DuckDbProcessor extends Processor
                 'foreign_schema' => $result->foreign_schema ?? null,
                 'foreign_table' => $result->foreign_table,
                 'foreign_columns' => explode(',', $result->foreign_columns),
-                'on_update' => strtolower($result->on_update),
-                'on_delete' => strtolower($result->on_delete),
+                'on_update' => strtolower($result->on_update ?? ''),
+                'on_delete' => strtolower($result->on_delete ?? ''),
             ];
         }, $results);
     }

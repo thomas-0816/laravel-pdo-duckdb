@@ -171,10 +171,10 @@ class DuckDBGrammar extends Grammar
         return ['change', 'primary', 'dropPrimary', 'foreign', 'dropForeign'];
     }
 
-    /** @inheritDoc */
-    public function compileChange(Blueprint $blueprint, Fluent $command)
+    public function compileChange(Blueprint $blueprint, Fluent $command): ?string
     {
         // Handled on table alteration...
+        return null;
     }
 
     /** @inheritDoc */
@@ -253,28 +253,28 @@ class DuckDBGrammar extends Grammar
         );
     }
 
-    /** @inheritDoc */
-    public function compilePrimary(Blueprint $blueprint, Fluent $command)
+    public function compilePrimary(Blueprint $blueprint, Fluent $command): ?string
     {
         // Handled on table creation or alteration...
+        return null;
     }
 
-    /** @inheritDoc */
-    public function compileForeign(Blueprint $blueprint, Fluent $command)
+    public function compileForeign(Blueprint $blueprint, Fluent $command): ?string
     {
         // Handled on table creation or alteration...
+        return null;
     }
 
-    /** @inheritDoc */
-    public function compileDropPrimary(Blueprint $blueprint, Fluent $command)
+    public function compileDropPrimary(Blueprint $blueprint, Fluent $command): ?string
     {
         // Handled on table alteration...
+        return null;
     }
 
-    /** @inheritDoc */
-    public function compileDropForeign(Blueprint $blueprint, Fluent $command)
+    public function compileDropForeign(Blueprint $blueprint, Fluent $command): ?string
     {
         // Handled on table alteration...
+        return null;
     }
 
     public function compileDrop(Blueprint $blueprint, Fluent $command): string

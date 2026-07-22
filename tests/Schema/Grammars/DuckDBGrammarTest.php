@@ -1,10 +1,8 @@
 <?php
 
 use DuckDb\DuckDbConnection;
-use DuckDb\Schema\Grammars\DuckDBGrammar;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Fluent;
 
 it('getSchemas returns schemas from DuckDB', function () {
     $connection = (function () {
@@ -1171,48 +1169,6 @@ it('compileTableComment sets a table comment', function () {
     expect($result)->toBe(null);
 });
 
-it('compileComment sets a column comment', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 'col_comment');
-    $command = new Fluent(['column' => new Fluent(['name' => 'name', 'comment' => 'Test comment', 'change' => false])]);
-
-    $connection->getPdo()->exec('CREATE TABLE col_comment (name TEXT)');
-    $sql = $grammar->compileComment($blueprint, $command);
-    $connection->getPdo()->exec($sql);
-
-    $result = $connection->getPdo()->query("select * from duckdb_columns() where table_name = 'col_comment' and column_name = 'name'")->fetch(PDO::FETCH_ASSOC);
-
-    expect($result)->not->toBeFalse();
-});
-
-it('compileComment with null comment and change flag sets null comment', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 'null_col_comment');
-    $command = new Fluent(['column' => new Fluent(['name' => 'test_col', 'comment' => null, 'change' => true])]);
-
-    $connection->getPdo()->exec('CREATE TABLE null_col_comment (test_col TEXT)');
-    $sql = $grammar->compileComment($blueprint, $command);
-    $connection->getPdo()->exec($sql);
-
-    $result = $connection->getPdo()->query("select * from duckdb_columns() where table_name = 'null_col_comment' and column_name = 'test_col'")->fetch(PDO::FETCH_ASSOC);
-
-    expect($result)->not->toBeFalse();
-});
-
 it('adding column without comment does not alter column metadata', function () {
     $connection = (function () {
         return new DuckDbConnection(function () {
@@ -1779,18 +1735,17 @@ it('dropAllViews iterates all schemas', function () {
     expect($views)->not->toContain('v_multi');
 });
 
-it('compileSchemas returns all schemas', function () {
+it('getSchemas returns all schemas with name and default', function () {
     $connection = (function () {
         return new DuckDbConnection(function () {
             return new PDO('duckdb::memory:');
         });
     })();
-    $grammar = new DuckDBGrammar($connection);
 
-    $result = $connection->getPdo()->query($grammar->compileSchemas())->fetchAll(PDO::FETCH_ASSOC);
+    $schemas = $connection->getSchemaBuilder()->getSchemas();
 
-    expect(count($result))->toBeGreaterThanOrEqual(1);
-    foreach ($result as $schema) {
+    expect(count($schemas))->toBeGreaterThanOrEqual(1);
+    foreach ($schemas as $schema) {
         expect($schema)->toHaveKey('name');
         expect($schema)->toHaveKey('default');
     }

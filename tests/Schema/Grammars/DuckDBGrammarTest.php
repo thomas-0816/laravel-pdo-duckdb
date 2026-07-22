@@ -2463,10 +2463,10 @@ it('change column type from string to integer preserves data', function () {
         $table->string('count_val');
     });
 
-    $connection->table('chg_type')->insert([['count_val' => '42'], ['count_val' => '7']]);
+    $connection->table('chg_type')->insert([['id' => 1, 'count_val' => '42'], ['id' => 2, 'count_val' => '7']]);
 
     $connection->getSchemaBuilder()->table('chg_type', function (Blueprint $table) {
-        $table->integer('count_val')->nullable();
+        $table->integer('count_val')->nullable()->change();
     });
 
     $col = $connection->getPdo()->query(
@@ -2489,7 +2489,7 @@ it('change column from nullable to not null preserves data', function () {
     $connection->table('chg_nullable')->insert(['id' => 1, 'tag' => 'hello']);
 
     $connection->getSchemaBuilder()->table('chg_nullable', function (Blueprint $table) {
-        $table->string('tag')->nullable(false);
+        $table->string('tag')->nullable(false)->change();
     });
 
     $col = $connection->getPdo()->query(
@@ -2511,7 +2511,7 @@ it('change column default value preserves existing data', function () {
     $connection->table('chg_default')->insert(['id' => 1, 'status' => 'active']);
 
     $connection->getSchemaBuilder()->table('chg_default', function (Blueprint $table) {
-        $table->string('status')->default('pending');
+        $table->string('status')->default('pending')->change();
     });
 
     expect($connection->table('chg_default')->where('id', 1)->value('status'))->toBe('active');
@@ -2534,7 +2534,7 @@ it('change column rename preserves all data', function () {
     ]);
 
     $connection->getSchemaBuilder()->table('chg_rename', function (Blueprint $table) {
-        $table->string('new_name');
+        $table->string('new_name')->change();
     });
 
     expect($connection->getSchemaBuilder()->hasColumn('chg_rename', 'new_name'))->toBeTrue();
@@ -2604,8 +2604,8 @@ it('change column type with data and add column simultaneously', function () {
     $connection->table('chg_combo')->insert([['id' => 1, 'val' => '42']]);
 
     $connection->getSchemaBuilder()->table('chg_combo', function (Blueprint $table) {
-        $table->integer('val');
-        $table->boolean('active')->default(true);
+        $table->integer('val')->change();
+        $table->boolean('active')->default(true)->change();
     });
 
     expect($connection->getSchemaBuilder()->hasColumn('chg_combo', 'active'))->toBeTrue();
@@ -2664,7 +2664,7 @@ it('change column preserves multiple rows', function () {
 
     $rows = [];
     for ($i = 1; $i <= 50; $i++) {
-        $rows[] = ['name' => "user_{$i}"];
+        $rows[] = ['id' => $i, 'name' => "user_{$i}"];
     }
     $connection->table('chg_rows')->insert($rows);
 

@@ -7,6 +7,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\Grammars\Grammar;
 use Illuminate\Database\Schema\IndexDefinition;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Fluent;
 use RuntimeException;
 
@@ -54,7 +55,7 @@ class DuckDBGrammar extends Grammar
     public function compileViews($schema)
     {
         return sprintf(
-            "select table_name as name, table_schema as schema, view_definition as definition from information_schema.views where table_schema = %s order by table_name",
+            "select view_name as name, schema_name as schema, sql as definition from duckdb_views() where schema_name = %s and not internal order by view_name",
             $this->quoteString($schema ?: '')
         );
     }
@@ -162,6 +163,67 @@ class DuckDBGrammar extends Grammar
             $this->wrapTable($blueprint),
             $this->getColumn($blueprint, $command->column)
         );
+    }
+
+    /** @inheritDoc */
+    public function getAlterCommands(): array
+    {
+        return ['change', 'primary', 'dropPrimary', 'foreign', 'dropForeign'];
+    }
+
+    /** @inheritDoc */
+    public function compileChange(Blueprint $blueprint, Fluent $command): string
+    {
+        return '';
+    }
+
+    /** @inheritDoc */
+    public function compileAlter(Blueprint $blueprint, Fluent $command): array
+    {
+        $columnNames = [];
+        $autoIncrementColumn = null;
+
+        $columns = (new Collection($blueprint->getState()->getColumns()))
+            ->map(function ($column) use ($blueprint, &$columnNames, &$autoIncrementColumn) {
+                $name = $this->wrap($column);
+
+                $autoIncrementColumn = $column->autoIncrement ? $column->name : $autoIncrementColumn;
+
+                if (is_null($column->virtualAs) && is_null($column->virtualAsJson) &&
+                    is_null($column->storedAs) && is_null($column->storedAsJson)) {
+                    $columnNames[] = $name;
+                }
+
+                return $this->addModifiers(
+                    $this->wrap($column).' '.($column->full_type_definition ?? $this->getType($column)),
+                    $blueprint,
+                    $column
+                );
+            })->all();
+
+        $indexes = (new Collection($blueprint->getState()->getIndexes()))
+            ->reject(fn ($index) => str_starts_with('duckdb_', $index->index))
+            ->map(fn ($index) => $this->{'compile'.ucfirst($index->name)}($blueprint, $index))
+            ->all();
+
+        [, $tableName] = $this->connection->getSchemaBuilder()->parseSchemaAndTable($blueprint->getTable());
+        $tempTable = $this->wrapTable($blueprint, '__temp__'.$this->connection->getTablePrefix());
+        $table = $this->wrapTable($blueprint);
+        $columnNames = implode(', ', $columnNames);
+
+        return array_filter(array_merge([
+            'begin transaction',
+            sprintf('create table %s (%s%s%s)',
+                $tempTable,
+                implode(', ', $columns),
+                $this->addForeignKeys($blueprint->getState()->getForeignKeys()),
+                $autoIncrementColumn ? '' : $this->addPrimaryKeys($blueprint->getState()->getPrimaryKey())
+            ),
+            sprintf('insert into %s (%s) select %s from %s', $tempTable, $columnNames, $columnNames, $table),
+            sprintf('drop table %s', $table),
+            sprintf('alter table %s rename to %s', $tempTable, $this->wrapTable($tableName)),
+            'commit',
+        ], $indexes));
     }
 
     public function compileUnique(Blueprint $blueprint, Fluent $command): string

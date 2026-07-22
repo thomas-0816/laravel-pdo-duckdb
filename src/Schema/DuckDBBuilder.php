@@ -2,6 +2,7 @@
 
 namespace DuckDb\Schema;
 
+use Closure;
 use Illuminate\Database\Schema\Builder;
 use Illuminate\Support\Facades\File;
 
@@ -65,6 +66,12 @@ class DuckDBBuilder extends Builder
         $this->connection->statement("set {$key} = " . $this->connection->getPdo()->quote($value));
 
         return '';
+    }
+
+    /** {@inheritdoc} */
+    protected function createBlueprint($table, ?Closure $callback = null)
+    {
+        return new DuckDBBlueprint($this->connection, $table, $callback);
     }
 
     /** {@inheritdoc} */

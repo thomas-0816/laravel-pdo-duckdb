@@ -97,7 +97,7 @@ class DuckDBGrammar extends Grammar
     {
         return sprintf(
             "select list_aggregate(constraint_column_names, 'string_agg', ',') as columns, %s as foreign_schema, referenced_table as foreign_table, "
-            . "list_aggregate(referenced_column_names, 'string_agg', ',') as foreign_columns, 'cascade' as on_update, 'cascade' as on_delete from duckdb_constraints() "
+            . "list_aggregate(referenced_column_names, 'string_agg', ',') as foreign_columns, null as on_update, null as on_delete from duckdb_constraints() "
             . "where table_name = %s and schema_name = %s and constraint_type = 'FOREIGN KEY'",
             $this->quoteString($schema ?? 'main'),
             $this->quoteString($table),
@@ -140,19 +140,21 @@ class DuckDBGrammar extends Grammar
 
     protected function getForeignKey(Fluent $foreign): string
     {
+        $name = $foreign->index ?: 'fk_'.implode('_', (array) $foreign->columns);
+
         $sql = sprintf(
             ', constraint %s foreign key(%s) references %s(%s)',
-            $this->wrap($foreign->index),
+            $this->wrap($name),
             $this->columnize($foreign->columns),
             $this->wrapTable($foreign->on),
             $this->columnize((array) $foreign->references)
         );
 
-        if (! is_null($foreign->onDelete)) {
+        if (! empty($foreign->onDelete)) {
             $sql .= " on delete {$foreign->onDelete}";
         }
 
-        if (! is_null($foreign->onUpdate)) {
+        if (! empty($foreign->onUpdate)) {
             $sql .= " on update {$foreign->onUpdate}";
         }
 

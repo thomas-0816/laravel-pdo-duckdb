@@ -164,9 +164,9 @@ it('compileViews queries information_schema views', function () {
 
     $sql = $grammar->compileViews('main'); // TODO make real test, dont call compile function directly
 
-    expect($sql)->toContain('information_schema.views');
+    expect($sql)->toContain('duckdb_views()');
     expect($sql)->toContain("'main'");
-    expect($sql)->toContain('view_definition');
+    expect($sql)->toContain('definition');
 });
 
 it('compileViews returns actual views from DuckDB', function () {
@@ -251,8 +251,7 @@ it('compileIndexes queries index information', function () {
 
     $sql = $grammar->compileIndexes('main', 'test_tbl'); // TODO make real test, dont call compile function directly
 
-    expect($sql)->toContain('information_schema.index_columns');
-    expect($sql)->toContain('information_schema.indexes');
+    expect($sql)->toContain('duckdb_indexes()');
     expect($sql)->toContain('information_schema.table_constraints');
     expect($sql)->toContain("'test_tbl'");
     expect($sql)->toContain("'main'");
@@ -270,11 +269,11 @@ it('compileForeignKeys queries key_column_usage', function () {
 
     $sql = $grammar->compileForeignKeys('main', 'test_tbl'); // TODO make real test, dont call compile function directly
 
-    expect($sql)->toContain('information_schema.key_column_usage');
+    expect($sql)->toContain('duckdb_constraints()');
     expect($sql)->toContain("'test_tbl'");
     expect($sql)->toContain("'main'");
-    expect($sql)->toContain('foreign_table_name');
-    expect($sql)->toContain('foreign_column_name');
+    expect($sql)->toContain('foreign_table');
+    expect($sql)->toContain('foreign_columns');
     expect($sql)->toContain("'cascade'");
 });
 
@@ -2625,7 +2624,7 @@ it('change column from integer to string preserves data', function () {
     $connection->table('chg_int_str')->insert([['score' => 100], ['score' => 200]]);
 
     $connection->getSchemaBuilder()->table('chg_int_str', function (Blueprint $table) {
-        $table->string('score');
+        $table->string('score')->change();
     });
 
     $col = $connection->getPdo()->query(
@@ -2648,7 +2647,7 @@ it('change column with special characters in data', function () {
     $connection->table('chg_special')->insert([['content' => "It's a test with 'quotes' and \"double quotes\""]]);
 
     $connection->getSchemaBuilder()->table('chg_special', function (Blueprint $table) {
-        $table->text('content');
+        $table->text('content')->change();
     });
 
     expect($connection->table('chg_special')->where('id', 1)->value('content'))
@@ -2670,7 +2669,7 @@ it('change column preserves multiple rows', function () {
     $connection->table('chg_rows')->insert($rows);
 
     $connection->getSchemaBuilder()->table('chg_rows', function (Blueprint $table) {
-        $table->text('name');
+        $table->text('name')->change();
     });
 
     expect($connection->table('chg_rows')->count())->toBe(50);
@@ -2711,7 +2710,7 @@ it('change column type from boolean to string', function () {
     $connection->table('chg_bool')->insert([['flag' => true], ['flag' => false]]);
 
     $connection->getSchemaBuilder()->table('chg_bool', function (Blueprint $table) {
-        $table->string('flag');
+        $table->string('flag')->change();
     });
 
     $col = $connection->getPdo()->query(
@@ -2733,7 +2732,7 @@ it('change column with nullable and default simultaneously', function () {
     $connection->table('chg_nullable_default')->insert([['val' => 'test']]);
 
     $connection->getSchemaBuilder()->table('chg_nullable_default', function (Blueprint $table) {
-        $table->string('val')->nullable()->default('unknown');
+        $table->string('val')->nullable()->default('unknown')->change();
     });
 
     $col = $connection->getPdo()->query(
@@ -2790,7 +2789,7 @@ it('change column preserves foreign keys', function () {
     $connection->table('chg_fk_child')->insert([['id' => 1, 'parent_pk' => 1, 'label' => 'child1']]);
 
     $connection->getSchemaBuilder()->table('chg_fk_child', function (Blueprint $table) {
-        $table->string('label')->nullable();
+        $table->string('label')->nullable()->change();
     });
 
     expect($connection->table('chg_fk_child')->count())->toBe(1);

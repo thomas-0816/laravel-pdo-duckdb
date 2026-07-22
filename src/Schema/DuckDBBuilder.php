@@ -39,7 +39,7 @@ class DuckDBBuilder extends Builder
             );
 
             foreach ($tables as $table) {
-                $this->connection->statement("drop table if exists " . $this->connection->getQueryGrammar()->wrapTable($table->name));
+                $this->connection->statement("drop table if exists " . $this->connection->getQueryGrammar()->wrapTable($table->schema . '.' . $table->name));
             }
         }
     }

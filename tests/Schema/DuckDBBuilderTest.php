@@ -127,7 +127,7 @@ it('drops all views removes user created views', function () {
         "SELECT table_name FROM information_schema.views WHERE table_schema = 'main' AND table_name = 'my_test_view'"
     );
     expect($viewExists)->toHaveCount(0);
-})->throws(\Illuminate\Database\QueryException::class, 'Cannot drop internal catalog entry');
+});
 
 it('pragma returns a string value', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));

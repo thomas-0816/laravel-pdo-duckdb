@@ -1779,7 +1779,7 @@ it('compileIndex creates index with schema', function () {
 
     $connection->getSchemaBuilder()->create('idx_schema_test', function (Blueprint $table) {
         $table->integer('col1');
-        $table->index('idx_test', ['col1']);
+        $table->index(['col1'], 'idx_test');
     });
 
     $indexes = $connection->getPdo()->query(
@@ -1798,7 +1798,7 @@ it('compileDropIndex drops index with schema', function () {
 
     $connection->getSchemaBuilder()->create('drop_idx_test', function (Blueprint $table) {
         $table->integer('col1');
-        $table->index('idx_to_drop', ['col1']);
+        $table->index(['col1'], 'idx_to_drop');
     });
 
     $connection->getSchemaBuilder()->table('drop_idx_test', function (Blueprint $table) {
@@ -2755,7 +2755,7 @@ it('change column to varchar with length', function () {
         $table->integer('code');
     });
 
-    $connection->table('chg_varchar_len')->insert([['code' => 12345]]);
+    $connection->table('chg_varchar_len')->insert([['id' => 1, 'code' => 12345]]);
 
     $connection->getSchemaBuilder()->table('chg_varchar_len', function (Blueprint $table) {
         $table->string('code', 100);
@@ -2852,14 +2852,14 @@ it('change column preserves existing unique constraint', function () {
         $table->unique('email');
     });
 
-    $connection->table('chg_unique_preserve')->insert([['email' => 'test@example.com']]);
+    $connection->table('chg_unique_preserve')->insert([['id' => 1, 'email' => 'test@example.com']]);
 
     $connection->getSchemaBuilder()->table('chg_unique_preserve', function (Blueprint $table) {
         $table->text('email');
     });
 
     try {
-        $connection->table('chg_unique_preserve')->insert([['email' => 'test@example.com']]);
+        $connection->table('chg_unique_preserve')->insert([['id' => 2, 'email' => 'test@example.com']]);
         expect(true)->toBeFalse();
     } catch (\Exception $e) {
         expect($e->getMessage())->toContain('Duplicate');

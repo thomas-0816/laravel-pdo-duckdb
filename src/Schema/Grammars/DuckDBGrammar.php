@@ -108,16 +108,6 @@ class DuckDBGrammar extends Grammar
     public function compileCreate(Blueprint $blueprint, Fluent $command): array
     {
         $statements = [];
-
-        foreach ($blueprint->getColumns() as $column) {
-            if ($column->autoIncrement && in_array($column->type, $this->serials)) {
-                $statements[] = sprintf(
-                    'create sequence if not exists %s',
-                    $this->wrap($this->getSequenceName($blueprint, $column))
-                );
-            }
-        }
-
         $statements[] = sprintf(
             '%s table %s (%s%s%s)',
             $blueprint->temporary ? 'create temporary' : 'create',
@@ -245,16 +235,6 @@ class DuckDBGrammar extends Grammar
         $columnNames = implode(', ', $columnNames);
 
         $statements = [];
-
-        foreach ($blueprint->getState()->getColumns() as $column) {
-            if ($column->autoIncrement && in_array($column->type, $this->serials)) {
-                $statements[] = sprintf(
-                    'create sequence if not exists %s',
-                    $this->wrap($this->getSequenceName($blueprint, $column))
-                );
-            }
-        }
-
         $statements = array_merge($statements, array_filter([
             sprintf(
                 'create table %s (%s%s%s)',
@@ -630,19 +610,10 @@ class DuckDBGrammar extends Grammar
     protected function modifyIncrement(Blueprint $blueprint, Fluent $column): ?string
     {
         if (in_array($column->type, $this->serials) && $column->autoIncrement) {
-            return ' primary key default nextval(' . $this->quoteString($this->getSequenceName($blueprint, $column)) . ')';
+            throw new RuntimeException('DuckDB does not support auto_increment');
         }
 
         return null;
-    }
-
-    protected function getSequenceName(Blueprint $blueprint, Fluent $column): string
-    {
-        [$schema, $table] = $this->connection->getSchemaBuilder()->parseSchemaAndTable($blueprint->getTable());
-        $prefix = $this->connection->getTablePrefix();
-        $tableName = $prefix . $table;
-
-        return ($schema ? $schema . '.' : '') . 'seq_' . $tableName . '_' . $column->name;
     }
 
     protected function modifyStoredAs(Blueprint $blueprint, Fluent $column): ?string

@@ -248,11 +248,11 @@ it('getForeignKeys returns foreign keys for a table', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
     $connection->getSchemaBuilder()->create('fk_query_parent', function (Blueprint $table) {
-        $table->id();
+        $table->integer('id')->unique();
     });
 
     $connection->getSchemaBuilder()->create('fk_query_child', function (Blueprint $table) {
-        $table->id();
+        $table->integer('id')->unique();
         $table->foreignId('parent_id')->constrained('fk_query_parent');
     });
 
@@ -1128,11 +1128,11 @@ it('compileForeign adds foreign key without onDelete/onUpdate', function () {
     })();
 
     $connection->getSchemaBuilder()->create('parent2', function (Blueprint $table) {
-        $table->integer('id')->unsigned();
+        $table->bigInteger('id')->unsigned()->primary();
     });
 
     $connection->getSchemaBuilder()->create('child2', function (Blueprint $table) {
-        $table->integer('id')->unsigned();
+        $table->integer('id')->unsigned()->primary();
         $table->foreignId('parent_id')->constrained('parent2');
     });
 
@@ -1279,12 +1279,12 @@ it('compileCreate creates a table with foreign key', function () {
     })();
 
     $connection->getSchemaBuilder()->create('fk_create_users', function (Blueprint $table) {
-        $table->integer('id')->unsigned();
-        $table->string('name');
+        $table->integer('id')->unsigned()->primary();
+        $table->string('name')->unique();
     });
 
     $connection->getSchemaBuilder()->create('fk_create', function (Blueprint $table) {
-        $table->integer('id')->unsigned();
+        $table->integer('id')->unsigned()->primary();
         $table->string('user_name');
         $table->foreign('user_name')->references('name')->on('fk_create_users');
     });
@@ -2128,15 +2128,7 @@ it('compileCreate creates a table with autoincrement', function () {
         $table->increments('id');
         $table->string('name');
     });
-
-    expect($connection->getSchemaBuilder()->hasTable('type_incr_g'))->toBeTrue();
-
-    $connection->table('type_incr_g')->insert(['name' => 'test']);
-    $result = $connection->table('type_incr_g')->first();
-
-    expect($result->id)->toBe(1);
-    expect($result->name)->toBe('test');
-});
+})->throws(RuntimeException::class, 'DuckDB does not support auto_increment');
 
 it('compileCreate creates a table with collation', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));

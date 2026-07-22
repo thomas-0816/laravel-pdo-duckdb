@@ -2277,13 +2277,45 @@ it('renameIndex throws when index lookup fails in DuckDB', function () {
 
     $connection->getSchemaBuilder()->create('ri_test', function (Blueprint $table) {
         $table->string('name');
-        $table->index('ri_test_idx');
+        $table->index('name', 'ri_test_idx');
     });
 
     $connection->getSchemaBuilder()->table('ri_test', function (Blueprint $table) {
         $table->renameIndex('nonexistent_idx', 'ri_test_new');
     });
 })->throws(\Exception::class);
+
+it('renameIndex succeeds', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    $connection->getSchemaBuilder()->create('ri_test', function (Blueprint $table) {
+        $table->string('name');
+        $table->index('name', 'ri_test_idx');
+    });
+
+    $connection->getSchemaBuilder()->table('ri_test', function (Blueprint $table) {
+        $table->renameIndex('ri_test_idx', 'ri_test_new');
+    });
+
+    expect($connection->getSchemaBuilder()->hasIndex('ri_test', 'ri_test_idx'))->toBeFalse();
+    expect($connection->getSchemaBuilder()->hasIndex('ri_test', 'ri_test_new'))->toBeTrue();
+});
+
+it('renameUniqueIndex succeeds', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    $connection->getSchemaBuilder()->create('ri_test', function (Blueprint $table) {
+        $table->string('name');
+        $table->unique('name', 'ri_test_idx');
+    });
+
+    $connection->getSchemaBuilder()->table('ri_test', function (Blueprint $table) {
+        $table->renameIndex('ri_test_idx', 'ri_test_new');
+    });
+
+    expect($connection->getSchemaBuilder()->hasIndex('ri_test', 'ri_test_idx'))->toBeFalse();
+    expect($connection->getSchemaBuilder()->hasIndex('ri_test', 'ri_test_new'))->toBeTrue();
+});
 
 it('compileModifyNullable with storedAs and nullable false throws RuntimeException', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
@@ -2724,4 +2756,16 @@ it('change column preserves existing unique constraint', function () {
     } catch (\Exception $e) {
         expect($e->getMessage())->toContain('Duplicate');
     }
+});
+
+it('change column nullable', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    $connection->getSchemaBuilder()->create('chg_empty', function (Blueprint $table) {
+        $table->string('val');
+    });
+
+    $connection->getSchemaBuilder()->table('chg_empty', function (Blueprint $table) {
+        $table->string('val')->nullable()->change();
+    });
 });

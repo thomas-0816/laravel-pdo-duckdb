@@ -80,10 +80,9 @@ class DuckDBGrammar extends Grammar
             . " from duckdb_indexes() i"
             . " where i.table_name = %s and i.schema_name = %s and i.is_primary = false"
             . " union all"
-            . " select tc.constraint_name as name, kcu.column_name as \"column\", 1 as \"unique\", 1 as \"primary\""
-            . " from information_schema.table_constraints tc"
-            . " join information_schema.key_column_usage kcu on tc.constraint_name = kcu.constraint_name and tc.table_name = kcu.table_name and tc.table_schema = kcu.table_schema"
-            . " where tc.table_name = %s and tc.table_schema = %s and tc.constraint_type = 'PRIMARY KEY'"
+            . " select constraint_name as name, list_aggregate(constraint_column_names, 'string_agg', ',') as \"column\", 1 as \"unique\", 1 as \"primary\""
+            . " from duckdb_constraints()"
+            . " where table_name = %s and schema_name = %s and constraint_type = 'PRIMARY KEY'"
             . ") group by name, \"unique\", \"primary\"",
             $this->quoteString($table),
             $this->quoteString($schema ?? 'main'),
@@ -140,14 +139,6 @@ class DuckDBGrammar extends Grammar
             $this->wrapTable($foreign->on),
             $this->columnize((array) $foreign->references)
         );
-
-        if (! empty($foreign->onDelete)) {
-            $sql .= " on delete {$foreign->onDelete}";
-        }
-
-        if (! empty($foreign->onUpdate)) {
-            $sql .= " on update {$foreign->onUpdate}";
-        }
 
         return $sql;
     }
@@ -317,22 +308,6 @@ class DuckDBGrammar extends Grammar
     public function compileDropIfExists(Blueprint $blueprint, Fluent $command): string
     {
         return 'drop table if exists ' . $this->wrapTable($blueprint);
-    }
-
-    public function compileDropAllTables(?string $schema = null): string
-    {
-        return sprintf(
-            "select 'drop table if exists ' || '\"' || schema_name || '\".\"' || table_name || '\"' || ';' from duckdb_tables() where schema_name = %s and not internal",
-            $this->quoteString($schema ?? 'main')
-        );
-    }
-
-    public function compileDropAllViews(?string $schema = null): string
-    {
-        return sprintf(
-            "select 'drop view if exists ' || view_name from duckdb_views() where schema_name = %s",
-            $this->quoteString($schema ?? 'main')
-        );
     }
 
     public function compileDropColumn(Blueprint $blueprint, Fluent $command): array
@@ -594,16 +569,11 @@ class DuckDBGrammar extends Grammar
 
     protected function modifyNullable(Blueprint $blueprint, Fluent $column): ?string
     {
-        if (is_null($column->virtualAs)
-            && is_null($column->virtualAsJson)) {
+        if (is_null($column->virtualAs) && is_null($column->virtualAsJson)) {
             return $column->nullable ? '' : ' not null';
         }
 
-        if ($column->nullable === false) {
-            return ' not null';
-        }
-
-        return null;
+        return $column->nullable === false ? ' not null' : null;
     }
 
     protected function modifyDefault(Blueprint $blueprint, Fluent $column): ?string
@@ -644,16 +614,12 @@ class DuckDBGrammar extends Grammar
 
     public function compileComment(Blueprint $blueprint, Fluent $command): ?string
     {
-        if (! is_null($comment = $command->column->comment) || $command->column->change) {
-            return sprintf(
-                'comment on column %s.%s is %s',
-                $this->wrapTable($blueprint),
-                $this->wrap($command->column->name),
-                is_null($comment) ? 'NULL' : $this->quoteString($comment)
-            );
-        }
-
-        return null;
+        return sprintf(
+            'comment on column %s.%s is %s',
+            $this->wrapTable($blueprint),
+            $this->wrap($command->column->name),
+            is_null($command->column->comment) ? 'NULL' : $this->quoteString($command->column->comment)
+        );
     }
 
     public function compileTableComment(Blueprint $blueprint, Fluent $command): string

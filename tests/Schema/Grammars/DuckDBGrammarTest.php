@@ -155,126 +155,111 @@ it('getTables excludes internal duckdb tables', function () {
     }
 });
 
-it('compileViews queries information_schema views', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
+it('getViews returns views from schema', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
-    $sql = $grammar->compileViews('main'); // TODO make real test, dont call compile function directly
+    $connection->getPdo()->exec('CREATE TABLE vt_src1 (id INTEGER)');
+    $connection->getPdo()->exec('CREATE VIEW v_test_view1 AS SELECT * FROM vt_src1');
 
-    expect($sql)->toContain('duckdb_views()');
-    expect($sql)->toContain("'main'");
-    expect($sql)->toContain('definition');
+    $views = $connection->getSchemaBuilder()->getViews('main');
+
+    expect($views)->not->toBeEmpty();
+    $names = array_column($views, 'name');
+    expect($names)->toContain('v_test_view1');
 });
 
-it('compileViews returns actual views from DuckDB', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-    $grammar = new DuckDBGrammar($connection);
+it('getViews returns actual views from DuckDB', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
     $connection->getPdo()->exec('CREATE TABLE vt_src (id INTEGER)');
     $connection->getPdo()->exec('CREATE VIEW v_test_view AS SELECT * FROM vt_src');
-    $result = $connection->getPdo()->query($grammar->compileViews('main'))->fetchAll(PDO::FETCH_ASSOC); // TODO make real test, dont call compile function directly
-    $names = array_column($result, 'name');
+
+    $views = $connection->getSchemaBuilder()->getViews('main');
+    $names = array_column($views, 'name');
 
     expect($names)->toContain('v_test_view');
 });
 
-it('compileViews defaults to empty string when schema is falsy', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
+it('getViews returns empty for non-existent schema', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
-    $sql = $grammar->compileViews(''); // TODO make real test, dont call compile function directly
+    $connection->getPdo()->exec('CREATE TABLE vt_src2 (id INTEGER)');
+    $connection->getPdo()->exec('CREATE VIEW v_test_view2 AS SELECT * FROM vt_src2');
 
-    expect($sql)->toContain("''");
+    $views = $connection->getSchemaBuilder()->getViews('nonexistent_schema');
+
+    expect($views)->toBeEmpty();
 });
 
-it('compileColumns queries information_schema columns', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
+it('getColumns returns columns for a table', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
-    $sql = $grammar->compileColumns('main', 'test_tbl'); // TODO make real test, dont call compile function directly
+    $connection->getPdo()->exec('CREATE TABLE col_test_tbl (id INTEGER, name TEXT)');
 
-    expect($sql)->toContain('information_schema.columns');
-    expect($sql)->toContain("'test_tbl'");
-    expect($sql)->toContain("'main'");
-    expect($sql)->toContain('ordinal_position');
-    expect($sql)->toContain('"nullable"');
-    expect($sql)->toContain('"default"');
-    expect($sql)->toContain('"cid"');
+    $columns = $connection->getSchemaBuilder()->getColumns('col_test_tbl');
+
+    expect($columns)->not->toBeEmpty();
+    $colNames = array_column($columns, 'name');
+    expect($colNames)->toContain('id');
+    expect($colNames)->toContain('name');
 });
 
-it('compileColumns defaults to main schema when null', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
+it('getColumns defaults to main schema when none specified', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
-    $sql = $grammar->compileColumns(null, 'test_tbl'); // TODO make real test, dont call compile function directly
+    $connection->getPdo()->exec('CREATE TABLE col_default_tbl (id INTEGER, name TEXT)');
 
-    expect($sql)->toContain("'main'");
+    $columns = $connection->getSchemaBuilder()->getColumns('col_default_tbl');
+
+    expect($columns)->not->toBeEmpty();
+    $colNames = array_column($columns, 'name');
+    expect($colNames)->toContain('id');
+    expect($colNames)->toContain('name');
 });
 
-it('compileColumns returns actual columns from DuckDB', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-    $grammar = new DuckDBGrammar($connection);
+it('getColumns returns actual columns from DuckDB', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
     $connection->getPdo()->exec('CREATE TABLE cc_t (id INTEGER, name TEXT, val DOUBLE)');
-    $result = $connection->getPdo()->query($grammar->compileColumns('main', 'cc_t'))->fetchAll(PDO::FETCH_ASSOC); // TODO make real test, dont call compile function directly
-    $colNames = array_column($result, 'name');
+
+    $columns = $connection->getSchemaBuilder()->getColumns('cc_t');
+    $colNames = array_column($columns, 'name');
 
     expect($colNames)->toBe(['id', 'name', 'val']);
 });
 
-it('compileIndexes queries index information', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
+it('getIndexes returns indexes for a table', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
-    $sql = $grammar->compileIndexes('main', 'test_tbl'); // TODO make real test, dont call compile function directly
+    $connection->getSchemaBuilder()->create('idx_query_tbl', function (Blueprint $table) {
+        $table->integer('id');
+        $table->string('email');
+        $table->unique('email', 'idx_query_email_unique');
+    });
 
-    expect($sql)->toContain('duckdb_indexes()');
-    expect($sql)->toContain('information_schema.table_constraints');
-    expect($sql)->toContain("'test_tbl'");
-    expect($sql)->toContain("'main'");
-    expect($sql)->toContain('PRIMARY KEY');
-    expect($sql)->toContain('union all');
-    expect($sql)->toContain('group_concat');
+    $indexes = $connection->getSchemaBuilder()->getIndexes('idx_query_tbl');
+
+    expect($indexes)->not->toBeEmpty();
+    $indexNames = array_column($indexes, 'name');
+    expect($indexNames)->toContain('idx_query_email_unique');
 });
 
-it('compileForeignKeys queries key_column_usage', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
+it('getForeignKeys returns foreign keys for a table', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
-    $sql = $grammar->compileForeignKeys('main', 'test_tbl'); // TODO make real test, dont call compile function directly
+    $connection->getSchemaBuilder()->create('fk_query_parent', function (Blueprint $table) {
+        $table->integer('id')->unsigned();
+    });
 
-    expect($sql)->toContain('duckdb_constraints()');
-    expect($sql)->toContain("'test_tbl'");
-    expect($sql)->toContain("'main'");
-    expect($sql)->toContain('foreign_table');
-    expect($sql)->toContain('foreign_columns');
-    expect($sql)->toContain("'cascade'");
+    $connection->getSchemaBuilder()->create('fk_query_child', function (Blueprint $table) {
+        $table->integer('id')->unsigned();
+        $table->foreignId('parent_id')->constrained('fk_query_parent');
+    });
+
+    $foreignKeys = $connection->getSchemaBuilder()->getForeignKeys('fk_query_child');
+
+    expect($foreignKeys)->not->toBeEmpty();
+    expect($foreignKeys[0]['foreign_table'])->toBe('fk_query_parent');
 });
 
 it('dropAllTables drops all user tables', function () {
@@ -1351,39 +1336,45 @@ it('compileIndex creates an index via schema builder', function () {
     expect($indexes)->toContain('idx_name');
 });
 
-it('compileUnique compiles unique index SQL', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 'uniq_compile');
-    $command = new Fluent(['index' => 'uniq_email', 'columns' => ['email']]);
+it('create unique index prevents duplicate values', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
-    $sql = $grammar->compileUnique($blueprint, $command); // TODO make real test, dont call compile function directly
+    $connection->getSchemaBuilder()->create('uniq_compile', function (Blueprint $table) {
+        $table->string('email');
+        $table->unique('email', 'uniq_email');
+    });
 
-    expect($sql)->toContain('create unique index');
-    expect($sql)->toContain('uniq_email');
-    expect($sql)->toContain('email');
+    $connection->table('uniq_compile')->insert(['email' => 'a@test.com']);
+
+    try {
+        $connection->table('uniq_compile')->insert(['email' => 'a@test.com']);
+        expect(true)->toBeFalse();
+    } catch (\Exception $e) {
+        expect($e->getMessage())->toContain('Duplicate key');
+    }
 });
 
-it('compileDropIndex compiles drop index SQL', function () {
-    $connection = (function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })();
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 'di_compile');
-    $command = new Fluent(['index' => 'idx_to_drop']);
+it('drop index removes an existing index', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
-    $sql = $grammar->compileDropIndex($blueprint, $command); // TODO make real test, dont call compile function directly
+    $connection->getSchemaBuilder()->create('di_compile', function (Blueprint $table) {
+        $table->string('name');
+        $table->index('name', 'idx_to_drop');
+    });
 
-    expect($sql)->toContain('drop index');
-    expect($sql)->toContain('idx_to_drop');
+    $indexes = $connection->getPdo()->query(
+        "select index_name from duckdb_indexes() where table_name = 'di_compile'"
+    )->fetchAll(PDO::FETCH_COLUMN);
+    expect($indexes)->toContain('idx_to_drop');
+
+    $connection->getSchemaBuilder()->table('di_compile', function (Blueprint $table) {
+        $table->dropIndex('idx_to_drop');
+    });
+
+    $indexes = $connection->getPdo()->query(
+        "select index_name from duckdb_indexes() where table_name = 'di_compile'"
+    )->fetchAll(PDO::FETCH_COLUMN);
+    expect($indexes)->not->toContain('idx_to_drop');
 });
 
 it('compileDropUnique compiles drop index SQL', function () {

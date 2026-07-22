@@ -14,7 +14,7 @@ use RuntimeException;
 class DuckDBGrammar extends Grammar
 {
     /** @inheritDoc */
-    protected $modifiers = ['Increment', 'Nullable', 'Default', 'Collate', 'VirtualAs', 'StoredAs'];
+    protected $modifiers = ['Increment', 'VirtualAs', 'StoredAs', 'Nullable', 'Default', 'Collate'];
 
     /** @var string[] */
     protected $serials = ['bigInteger', 'integer', 'mediumInteger', 'smallInteger', 'tinyInteger'];
@@ -182,7 +182,7 @@ class DuckDBGrammar extends Grammar
             $columnSql .= " collate \"{$column->collation}\"";
         }
 
-        if (! is_null($column->default) && is_null($column->virtualAs) && is_null($column->virtualAsJson) && is_null($column->storedAs)) {
+        if (! is_null($column->default) && is_null($column->virtualAs) && is_null($column->virtualAsJson)) {
             $columnSql .= ' default ' . $this->getDefaultValue($column->default);
         }
 
@@ -192,9 +192,7 @@ class DuckDBGrammar extends Grammar
 
         if (! $column->nullable
             && is_null($column->virtualAs)
-            && is_null($column->virtualAsJson)
-            && is_null($column->storedAs)
-            && is_null($column->storedAsJson)) {
+            && is_null($column->virtualAsJson)) {
             $statements[] = sprintf('alter table %s alter column %s set not null', $table, $wrapped);
         }
 
@@ -225,8 +223,7 @@ class DuckDBGrammar extends Grammar
 
                 $autoIncrementColumn = $column->autoIncrement ? $column->name : $autoIncrementColumn;
 
-                if (is_null($column->virtualAs) && is_null($column->virtualAsJson)
-                    && is_null($column->storedAs) && is_null($column->storedAsJson)) {
+                if (is_null($column->virtualAs) && is_null($column->virtualAsJson)) {
                     $columnNames[] = $name;
                 }
 
@@ -607,29 +604,10 @@ class DuckDBGrammar extends Grammar
         return null;
     }
 
-    protected function modifyStoredAs(Blueprint $blueprint, Fluent $column): ?string
-    {
-        if (! is_null($storedAs = $column->storedAsJson)) {
-            if ($this->isJsonSelector($storedAs)) {
-                $storedAs = $this->wrapJsonSelector($storedAs);
-            }
-
-            return " as ({$storedAs}) stored";
-        }
-
-        if (! is_null($storedAs = $column->storedAs)) {
-            return " as ({$this->getValue($column->storedAs)}) stored";
-        }
-
-        return null;
-    }
-
     protected function modifyNullable(Blueprint $blueprint, Fluent $column): ?string
     {
         if (is_null($column->virtualAs)
-            && is_null($column->virtualAsJson)
-            && is_null($column->storedAs)
-            && is_null($column->storedAsJson)) {
+            && is_null($column->virtualAsJson)) {
             return $column->nullable ? '' : ' not null';
         }
 
@@ -642,7 +620,7 @@ class DuckDBGrammar extends Grammar
 
     protected function modifyDefault(Blueprint $blueprint, Fluent $column): ?string
     {
-        if (! is_null($column->default) && is_null($column->virtualAs) && is_null($column->virtualAsJson) && is_null($column->storedAs)) {
+        if (! is_null($column->default) && is_null($column->virtualAs) && is_null($column->virtualAsJson)) {
             return ' default ' . $this->getDefaultValue($column->default);
         }
 
@@ -665,6 +643,15 @@ class DuckDBGrammar extends Grammar
         $tableName = $prefix . $table;
 
         return ($schema ? $schema . '.' : '') . 'seq_' . $tableName . '_' . $column->name;
+    }
+
+    protected function modifyStoredAs(Blueprint $blueprint, Fluent $column): ?string
+    {
+        if (! is_null($column->storedAs) || ! is_null($column->storedAsJson)) {
+            throw new RuntimeException('DuckDB does not support stored generated columns.');
+        }
+
+        return null;
     }
 
     protected function modifyCollate(Blueprint $blueprint, Fluent $column): ?string

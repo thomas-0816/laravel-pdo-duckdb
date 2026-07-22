@@ -2269,7 +2269,7 @@ it('compileCreate creates a table with collation', function () {
     expect($connection->getSchemaBuilder()->hasColumn('collate_tbl', 'name'))->toBeTrue();
 });
 
-it('compileCreate creates a table with storedAs expression', function () {
+it('compileCreate throws RuntimeException for storedAs expression', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
     $connection->getSchemaBuilder()->create('stored_as_g', function (Blueprint $table) {
@@ -2277,26 +2277,16 @@ it('compileCreate creates a table with storedAs expression', function () {
         $table->integer('b');
         $table->integer('total')->storedAs(new Expression('a + b'));
     });
+})->throws(RuntimeException::class, 'DuckDB does not support stored generated columns');
 
-    $connection->getPdo()->exec('INSERT INTO stored_as_g (a, b) VALUES (3, 5)');
-    $result = $connection->getPdo()->query('SELECT total FROM stored_as_g')->fetch(PDO::FETCH_ASSOC);
-
-    expect((int) $result['total'])->toBe(8);
-});
-
-it('compileCreate creates a table with storedAsJson expression', function () {
+it('compileCreate throws RuntimeException for storedAsJson expression', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
     $connection->getSchemaBuilder()->create('stored_json_tbl', function (Blueprint $table) {
         $table->string('data');
         $table->string('extracted')->storedAsJson('data->name');
     });
-
-    $connection->getPdo()->exec("INSERT INTO stored_json_tbl (data) VALUES ('{\"name\": \"hello\"}')");
-    $result = $connection->getPdo()->query("SELECT extracted FROM stored_json_tbl")->fetch(PDO::FETCH_ASSOC);
-
-    expect($result)->not->toBeFalse();
-});
+})->throws(RuntimeException::class, 'DuckDB does not support stored generated columns');
 
 it('compileCreate creates a table with virtualAsJson expression', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
@@ -2324,7 +2314,7 @@ it('compileCreate with virtualAsJson using JSON column path selector', function 
     expect($connection->getSchemaBuilder()->hasColumn('vjson_path_tbl', 'extracted'))->toBeTrue();
 });
 
-it('compileCreate with storedAsJson using JSON column path selector', function () {
+it('compileCreate throws RuntimeException for storedAsJson using JSON column path selector', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
     $connection->getSchemaBuilder()->create('sjson_path_tbl', function (Blueprint $table) {
@@ -2332,10 +2322,7 @@ it('compileCreate with storedAsJson using JSON column path selector', function (
         $table->integer('count_val');
         $table->string('extracted')->storedAsJson('data->name');
     });
-
-    expect($connection->getSchemaBuilder()->hasTable('sjson_path_tbl'))->toBeTrue();
-    expect($connection->getSchemaBuilder()->hasColumn('sjson_path_tbl', 'extracted'))->toBeTrue();
-});
+})->throws(RuntimeException::class, 'DuckDB does not support stored generated columns');
 
 it('compileAlter modifies an existing table by adding a column', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
@@ -2425,20 +2412,20 @@ it('renameIndex throws when index lookup fails in DuckDB', function () {
     });
 })->throws(\Exception::class);
 
-it('compileModifyNullable with storedAs and nullable false', function () {
+it('compileModifyNullable with storedAs and nullable false throws RuntimeException', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
-    $connection->getSchemaBuilder()->create('stored_nn_tbl', function (Blueprint $table) {
+    $connection->getSchemaBuilder();
+
+    $blueprint = new Blueprint($connection, 'stored_nn_tbl', function (Blueprint $table) {
         $table->integer('a');
         $table->integer('b');
         $table->integer('total')->storedAs(new Expression('a + b'))->nullable(false);
     });
 
-    $connection->getPdo()->exec('INSERT INTO stored_nn_tbl (a, b) VALUES (2, 3)');
-    $result = $connection->getPdo()->query('SELECT total FROM stored_nn_tbl')->fetch(PDO::FETCH_ASSOC);
-
-    expect((int) $result['total'])->toBe(5);
-});
+    $grammar = $connection->getSchemaGrammar();
+    $grammar->compileCreate($blueprint, new Fluent(['name' => 'create']));
+})->throws(RuntimeException::class, 'DuckDB does not support stored generated columns');
 
 it('compileModifyDefault returns null when virtualAs is set', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));

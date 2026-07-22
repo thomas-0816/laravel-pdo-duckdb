@@ -537,7 +537,7 @@ class DuckDBGrammar extends Grammar
     protected function modifyCollate(Blueprint $blueprint, Fluent $column): ?string
     {
         if (! is_null($column->collation)) {
-            return " collate '{$column->collation}'";
+            return " collate \"{$column->collation}\"";
         }
 
         return null;

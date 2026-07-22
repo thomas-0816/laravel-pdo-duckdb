@@ -6,160 +6,148 @@ use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Fluent;
 
-it('compileSchemas queries information_schema', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
-
-    $sql = $grammar->compileSchemas();
-
-    expect($sql)->toContain('information_schema.schemata');
-    expect($sql)->toContain('schema_name');
-    expect($sql)->toContain('"default"');
-});
-
-it('compileSchemas executes against DuckDB', function () {
+it('getSchemas returns schemas from DuckDB', function () {
     $connection = (function () {
         return new DuckDbConnection(function () {
             return new PDO('duckdb::memory:');
         });
     })();
-    $grammar = new DuckDBGrammar($connection);
 
-    $result = $connection->getPdo()->query($grammar->compileSchemas())->fetchAll(PDO::FETCH_ASSOC); // TODO make real test, dont call compile function directly
+    $schemas = $connection->getSchemaBuilder()->getSchemas();
 
-    expect($result)->not->toBeEmpty();
-    $names = array_column($result, 'name');
+    expect($schemas)->not->toBeEmpty();
+    $names = array_column($schemas, 'name');
     expect($names)->toContain('main');
 });
 
-it('compileTableExists queries information_schema', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
-
-    $sql = $grammar->compileTableExists('main', 'test_table'); // TODO make real test, dont call compile function directly
-
-    expect($sql)->toContain('information_schema.tables');
-    expect($sql)->toContain("'test_table'");
-    expect($sql)->toContain("'main'");
-    expect($sql)->toContain("'BASE TABLE'");
-    expect($sql)->toContain('"exists"');
-});
-
-it('compileTableExists defaults to main schema when null', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
-
-    $sql = $grammar->compileTableExists(null, 'test_table'); // TODO make real test, dont call compile function directly
-
-    expect($sql)->toContain("'main'");
-});
-
-it('compileTableExists returns true for existing table', function () {
+it('getSchemas includes the default schema', function () {
     $connection = (function () {
         return new DuckDbConnection(function () {
             return new PDO('duckdb::memory:');
         });
     })();
-    $grammar = new DuckDBGrammar($connection);
+
+    $schemas = $connection->getSchemaBuilder()->getSchemas();
+    $main = collect($schemas)->firstWhere('name', 'main');
+
+    expect($main)->not->toBeNull();
+    expect($main['default'])->toBe(true);
+});
+
+it('hasTable detects an existing table via information_schema', function () {
+    $connection = (function () {
+        return new DuckDbConnection(function () {
+            return new PDO('duckdb::memory:');
+        });
+    })();
 
     $connection->getPdo()->exec('CREATE TABLE existing_tbl (id INTEGER)');
-    $result = $connection->getPdo()->query($grammar->compileTableExists('main', 'existing_tbl'))->fetch(PDO::FETCH_ASSOC); // TODO make real test, dont call compile function directly
 
-    expect($result['exists'])->toBe(true);
+    expect($connection->getSchemaBuilder()->hasTable('existing_tbl'))->toBeTrue();
 });
 
-it('compileTableExists returns false for non-existing table', function () {
+it('hasTable defaults to main schema when no explicit schema', function () {
     $connection = (function () {
         return new DuckDbConnection(function () {
             return new PDO('duckdb::memory:');
         });
     })();
-    $grammar = new DuckDBGrammar($connection);
 
-    $result = $connection->getPdo()->query($grammar->compileTableExists('main', 'nonexistent'))->fetch(PDO::FETCH_ASSOC); // TODO make real test, dont call compile function directly
+    $connection->getPdo()->exec('CREATE TABLE default_schema_tbl (id INTEGER)');
 
-    expect($result['exists'])->toBe(false);
+    expect($connection->getSchemaBuilder()->hasTable('default_schema_tbl'))->toBeTrue();
 });
 
-it('compileTables with null schema omits schema filter', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
-
-    $sql = $grammar->compileTables(null); // TODO make real test, dont call compile function directly
-
-    expect($sql)->toContain('information_schema.tables');
-    expect($sql)->not->toContain('table_schema =');
-    expect($sql)->not->toContain('table_schema in');
-    expect($sql)->toContain("'BASE TABLE'");
-    expect($sql)->toContain('not like');
-});
-
-it('compileTables with string schema filters by schema', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
-
-    $sql = $grammar->compileTables('main'); // TODO make real test, dont call compile function directly
-
-    expect($sql)->toContain("table_schema = 'main'");
-});
-
-it('compileTables with array schema uses IN clause', function () {
-    $grammar = new DuckDBGrammar((function () {
-        return new DuckDbConnection(function () {
-            return new PDO('duckdb::memory:');
-        });
-    })());
-
-    $sql = $grammar->compileTables(['main', 'temp']); // TODO make real test, dont call compile function directly
-
-    expect($sql)->toContain('table_schema in');
-    expect($sql)->toContain("'main'");
-    expect($sql)->toContain("'temp'");
-});
-
-it('compileTables returns actual tables from DuckDB', function () {
+it('hasTable returns true for existing table', function () {
     $connection = (function () {
         return new DuckDbConnection(function () {
             return new PDO('duckdb::memory:');
         });
     })();
-    $grammar = new DuckDBGrammar($connection);
+
+    $connection->getPdo()->exec('CREATE TABLE ht_true_tbl (id INTEGER, name TEXT)');
+
+    expect($connection->getSchemaBuilder()->hasTable('ht_true_tbl'))->toBeTrue();
+});
+
+it('hasTable returns false for non-existing table', function () {
+    $connection = (function () {
+        return new DuckDbConnection(function () {
+            return new PDO('duckdb::memory:');
+        });
+    })();
+
+    expect($connection->getSchemaBuilder()->hasTable('nonexistent'))->toBeFalse();
+});
+
+it('getTables with null schema returns all tables', function () {
+    $connection = (function () {
+        return new DuckDbConnection(function () {
+            return new PDO('duckdb::memory:');
+        });
+    })();
+
+    $connection->getPdo()->exec('CREATE TABLE null_schema_tbl (id INTEGER)');
+
+    $names = $connection->getSchemaBuilder()->getTableListing(null, false);
+
+    expect($names)->toContain('null_schema_tbl');
+});
+
+it('getTables with string schema returns tables from that schema', function () {
+    $connection = (function () {
+        return new DuckDbConnection(function () {
+            return new PDO('duckdb::memory:');
+        });
+    })();
+
+    $connection->getPdo()->exec('CREATE TABLE string_schema_tbl (id INTEGER)');
+
+    $names = $connection->getSchemaBuilder()->getTableListing('main', false);
+
+    expect($names)->toContain('string_schema_tbl');
+});
+
+it('getTables with array schema returns tables from those schemas', function () {
+    $connection = (function () {
+        return new DuckDbConnection(function () {
+            return new PDO('duckdb::memory:');
+        });
+    })();
+
+    $connection->getPdo()->exec('CREATE TABLE array_schema_tbl (id INTEGER)');
+
+    $names = $connection->getSchemaBuilder()->getTableListing(['main', 'temp'], false);
+
+    expect($names)->toContain('array_schema_tbl');
+});
+
+it('getTables returns actual tables from DuckDB', function () {
+    $connection = (function () {
+        return new DuckDbConnection(function () {
+            return new PDO('duckdb::memory:');
+        });
+    })();
 
     $connection->getPdo()->exec('CREATE TABLE ct_a (id INTEGER)');
     $connection->getPdo()->exec('CREATE TABLE ct_b (id INTEGER)');
-    $result = $connection->getPdo()->query($grammar->compileTables('main'))->fetchAll(PDO::FETCH_ASSOC); // TODO make real test, dont call compile function directly
-    $names = array_column($result, 'name');
+
+    $names = $connection->getSchemaBuilder()->getTableListing('main', false);
 
     expect($names)->toContain('ct_a');
     expect($names)->toContain('ct_b');
 });
 
-it('compileTables excludes internal duckdb tables', function () {
+it('getTables excludes internal duckdb tables', function () {
     $connection = (function () {
         return new DuckDbConnection(function () {
             return new PDO('duckdb::memory:');
         });
     })();
-    $grammar = new DuckDBGrammar($connection);
 
     $connection->getPdo()->exec('CREATE TABLE user_test (id INTEGER)');
-    $result = $connection->getPdo()->query($grammar->compileTables('main'))->fetchAll(PDO::FETCH_ASSOC); // TODO make real test, dont call compile function directly
-    $names = array_column($result, 'name');
+
+    $names = $connection->getSchemaBuilder()->getTableListing('main', false);
 
     expect($names)->not->toBeEmpty();
     foreach ($names as $name) {
@@ -1301,21 +1289,27 @@ it('compileComment with null comment and change flag sets null comment', functio
     expect($result)->not->toBeFalse();
 });
 
-it('compileComment returns null when no comment and not changing', function () {
+it('adding column without comment does not alter column metadata', function () {
     $connection = (function () {
         return new DuckDbConnection(function () {
             return new PDO('duckdb::memory:');
         });
     })();
-    $grammar = new DuckDBGrammar($connection);
-    $connection->getSchemaBuilder();
-    $blueprint = new Blueprint($connection, 'no_comment');
-    $column = new Fluent(['name' => 'test_col', 'comment' => null, 'change' => false]);
-    $command = new Fluent(['column' => $column]);
 
-    $sql = $grammar->compileComment($blueprint, $command); // TODO make real test, dont call compile function directly
+    $connection->getSchemaBuilder()->create('no_comment_tbl', function (Blueprint $table) {
+        $table->integer('id');
+    });
 
-    expect($sql)->toBeNull();
+    $connection->getSchemaBuilder()->table('no_comment_tbl', function (Blueprint $table) {
+        $table->string('test_col')->nullable();
+    });
+
+    $columns = $connection->getPdo()->query(
+        "select column_name from information_schema.columns where table_name = 'no_comment_tbl'"
+    )->fetchAll(PDO::FETCH_COLUMN);
+
+    expect($columns)->toContain('id');
+    expect($columns)->toContain('test_col');
 });
 
 it('compileDropColumn drops multiple columns via schema builder', function () {
@@ -2401,7 +2395,7 @@ it('compileAlter adds index on existing table', function () {
     expect($connection->getSchemaBuilder()->hasColumn('alter_idx_g', 'email'))->toBeTrue();
 });
 
-it('compileRenameIndex throws when index lookup fails in DuckDB', function () {
+it('renameIndex throws when index lookup fails in DuckDB', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
 
     $connection->getSchemaBuilder()->create('ri_test', function (Blueprint $table) {
@@ -2409,11 +2403,9 @@ it('compileRenameIndex throws when index lookup fails in DuckDB', function () {
         $table->index('ri_test_idx');
     });
 
-    $grammar = new DuckDBGrammar($connection);
-    $blueprint = new Blueprint($connection, 'ri_test');
-    $command = new Fluent(['from' => 'nonexistent_idx', 'to' => 'ri_test_new']);
-
-    $grammar->compileRenameIndex($blueprint, $command);
+    $connection->getSchemaBuilder()->table('ri_test', function (Blueprint $table) {
+        $table->renameIndex('nonexistent_idx', 'ri_test_new');
+    });
 })->throws(\Exception::class);
 
 it('compileModifyNullable with storedAs and nullable false', function () {

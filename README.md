@@ -1,4 +1,4 @@
-## Laravel DuckDB
+## Laravel PDO DuckDB
 
 A [DuckDB](https://duckdb.org/) database driver for [Laravel](https://laravel.com/) powered by the [DuckDB PDO Driver](https://github.com/thomas-0816/pdo-duckdb-php).
 

@@ -2714,4 +2714,21 @@ it('change column nullable', function () {
     $connection->getSchemaBuilder()->table('chg_empty', function (Blueprint $table) {
         $table->string('val')->nullable()->change();
     });
+
+    $col = $connection->getPdo()->query(
+        "select is_nullable from information_schema.columns where table_name = 'chg_empty' and column_name = 'val'"
+    )->fetch(PDO::FETCH_ASSOC);
+
+    expect($col['is_nullable'])->toBe('YES');
+
+    $connection->table('chg_empty')->insert(['val' => null]);
+    expect($connection->table('chg_empty')->count())->toBe(1);
 });
+
+it('add id', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    $connection->getSchemaBuilder()->create('table1', function (Blueprint $table) {
+        $table->id();
+    });
+})->throws(RuntimeException::class, 'DuckDB does not support auto_increment');

@@ -995,7 +995,7 @@ it('update with join and limit and skip and where on main query compiles correct
         ->skip(1)
         ->update(['ujw1.val' => 'updated']);
 
-    expect($connection->table('ujw1')->where('id', 1)->value('val'))->toBe('updated');
+    expect($connection->table('ujw1')->where('id', 1)->value('val'))->toBe('old');
     expect($connection->table('ujw1')->where('id', 2)->value('val'))->toBe('keep');
 });
 

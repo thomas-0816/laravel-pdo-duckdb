@@ -301,7 +301,7 @@ class DuckDBGrammar extends Grammar
         $table = $this->wrapTable($blueprint);
 
         return array_map(
-            fn ($column) => sprintf('alter table %s drop column %s', $table, $this->wrap($column)),
+            fn($column) => sprintf('alter table %s drop column %s', $table, $this->wrap($column)),
             $command->columns
         );
     }

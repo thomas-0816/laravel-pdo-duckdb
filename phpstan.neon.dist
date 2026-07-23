@@ -6,7 +6,6 @@ parameters:
     ignoreErrors:
         - '#Access to an undefined property Illuminate\\Support\\Fluent#'
         - '#Access to an undefined property Illuminate\\Database\\Schema\\ColumnDefinition#'
-        - '#Access to an undefined property Illuminate\\Database\\Schema\\IndexDefinition#'
         - '#Call to an undefined method Illuminate\\Support\\Fluent::default#'
         - '#generic class Illuminate\\Support\\Fluent but does not specify its types#'
         - '#no value type specified in iterable type array#'

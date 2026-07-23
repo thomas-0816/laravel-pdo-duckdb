@@ -2732,3 +2732,110 @@ it('add id', function () {
         $table->id();
     });
 })->throws(RuntimeException::class, 'DuckDB does not support auto_increment');
+
+it('compileAdd adds a column with collation', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    $connection->getSchemaBuilder()->create('add_collate_test', function (Blueprint $table) {
+        $table->integer('id');
+    });
+
+    $connection->getSchemaBuilder()->table('add_collate_test', function (Blueprint $table) {
+        $table->string('name')->collation('nocase');
+    });
+
+    expect($connection->getSchemaBuilder()->hasColumn('add_collate_test', 'name'))->toBeTrue();
+});
+
+it('compileDropPrimary returns null', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    $connection->getSchemaBuilder()->create('drop_pk_test', function (Blueprint $table) {
+        $table->integer('id');
+        $table->primary('id');
+    });
+
+    $connection->getSchemaBuilder()->table('drop_pk_test', function (Blueprint $table) {
+        $table->dropPrimary();
+    });
+
+    expect($connection->getSchemaBuilder()->hasTable('drop_pk_test'))->toBeTrue();
+});
+
+it('compileDropForeign returns null', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    $connection->getSchemaBuilder()->create('fk_drop_parent', function (Blueprint $table) {
+        $table->integer('id');
+        $table->primary('id');
+    });
+
+    $connection->getSchemaBuilder()->create('fk_drop_child', function (Blueprint $table) {
+        $table->integer('id');
+        $table->integer('parent_id');
+        $table->foreign('parent_id')->references('id')->on('fk_drop_parent');
+    });
+
+    $connection->getSchemaBuilder()->table('fk_drop_child', function (Blueprint $table) {
+        $table->dropForeign(['parent_id']);
+    });
+
+    expect($connection->getSchemaBuilder()->hasTable('fk_drop_child'))->toBeTrue();
+});
+
+it('renameIndex throws for primary key', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    $connection->getSchemaBuilder()->create('pk_rename_test', function (Blueprint $table) {
+        $table->integer('id');
+        $table->primary('id');
+    });
+
+    $indexes = $connection->getPdo()->query(
+        "select constraint_name as name from duckdb_constraints() where table_name = 'pk_rename_test' and constraint_type = 'PRIMARY KEY'"
+    )->fetchAll(PDO::FETCH_COLUMN);
+
+    $pkName = $indexes[0] ?? 'primary';
+
+    $connection->getSchemaBuilder()->table('pk_rename_test', function (Blueprint $table) use ($pkName) {
+        $table->renameIndex($pkName, 'new_pk');
+    });
+})->throws(RuntimeException::class, 'DuckDB does not support altering primary keys');
+
+it('compileComment sets column comment on create', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    $connection->getSchemaBuilder()->create('comment_col_create', function (Blueprint $table) {
+        $table->integer('id');
+        $table->string('name')->comment('The user name');
+    });
+
+    expect($connection->getSchemaBuilder()->hasTable('comment_col_create'))->toBeTrue();
+    expect($connection->getSchemaBuilder()->hasColumn('comment_col_create', 'name'))->toBeTrue();
+});
+
+it('compileComment with null comment on column', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    $connection->getSchemaBuilder()->create('comment_col_null', function (Blueprint $table) {
+        $table->integer('id');
+        $table->string('name')->comment(null);
+    });
+
+    expect($connection->getSchemaBuilder()->hasTable('comment_col_null'))->toBeTrue();
+    expect($connection->getSchemaBuilder()->hasColumn('comment_col_null', 'name'))->toBeTrue();
+});
+
+it('compileAdd adds a column with comment', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    $connection->getSchemaBuilder()->create('add_comment_test', function (Blueprint $table) {
+        $table->integer('id');
+    });
+
+    $connection->getSchemaBuilder()->table('add_comment_test', function (Blueprint $table) {
+        $table->string('name')->comment('The user name');
+    });
+
+    expect($connection->getSchemaBuilder()->hasColumn('add_comment_test', 'name'))->toBeTrue();
+});

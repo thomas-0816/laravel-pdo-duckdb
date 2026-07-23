@@ -18,33 +18,4 @@ class DuckDBBlueprint extends Blueprint
             }
         });
     }
-
-    public function addAlterCommands(): void
-    {
-        if (! $this->grammar instanceof DuckDBGrammar) {
-            parent::addAlterCommands();
-
-            return;
-        }
-
-        $alterCommands = $this->grammar->getAlterCommands();
-
-        $commands = [];
-        $hasAlterCommand = false;
-
-        foreach ($this->commands as $command) {
-            if (in_array($command->name, $alterCommands)) {
-                $hasAlterCommand = true;
-            }
-
-            $commands[] = $command;
-        }
-
-        if ($hasAlterCommand) {
-            $commands[] = $this->createCommand('alter');
-            $this->state = new BlueprintState($this, $this->connection);
-        }
-
-        $this->commands = $commands;
-    }
 }

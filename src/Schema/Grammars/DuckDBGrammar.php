@@ -191,16 +191,49 @@ class DuckDBGrammar extends Grammar
         return $statements;
     }
 
-    public function getAlterCommands(): array
+    public function compileChange(Blueprint $blueprint, Fluent $command): array
     {
-        return [];
-    }
+        $column = $command->column;
+        $table = $this->wrapTable($blueprint);
+        $wrapped = $this->wrap($column);
 
-    public function compileChange(Blueprint $blueprint, Fluent $command): ?string
-    {
-        throw new RuntimeException(
-            'DuckDB does not support changing column types. Use addColumn/dropColumn instead.'
-        );
+        $oldColumns = $this->connection->getSchemaBuilder()->getColumns($blueprint->getTable());
+        $oldColumn = collect($oldColumns)->firstWhere('name', $column->name);
+
+        if (is_null($oldColumn)) {
+            return [];
+        }
+
+        $statements = [];
+
+        $newType = strtolower($column->full_type_definition ?? $this->getType($column));
+        $oldType = strtolower($oldColumn['type']);
+
+        if ($oldType !== $newType) {
+            $collateSql = ! is_null($column->collation)
+                ? ' collate "' . $column->collation . '"'
+                : '';
+
+            $statements[] = sprintf('alter table %s alter column %s set data type %s%s', $table, $wrapped, $newType, $collateSql);
+        }
+
+        if ($oldColumn['nullable'] !== $column->nullable) {
+            if ($column->nullable) {
+                $statements[] = sprintf('alter table %s alter column %s drop not null', $table, $wrapped);
+            } else {
+                $statements[] = sprintf('alter table %s alter column %s set not null', $table, $wrapped);
+            }
+        }
+
+        $newDefault = $column->default ?? null;
+
+        if (is_null($newDefault)) {
+            $statements[] = sprintf('alter table %s alter column %s drop default', $table, $wrapped);
+        } else {
+            $statements[] = sprintf('alter table %s alter column %s set default %s', $table, $wrapped, $this->getDefaultValue($newDefault));
+        }
+
+        return $statements;
     }
 
     public function compileUnique(Blueprint $blueprint, Fluent $command): string

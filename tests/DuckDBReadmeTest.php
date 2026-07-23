@@ -1,6 +1,7 @@
 <?php
 
 use DuckDb\DuckDbConnection;
+use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 
@@ -12,15 +13,6 @@ class Event extends Model
 
 it('verifies examples from readme', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
-    Model::setConnectionResolver(new class($connection) implements \Illuminate\Database\ConnectionResolverInterface {
-        public function __construct(private $connection) {}
-        public function connection($connection = null) { return $this->connection; }
-        public function getDefaultConnection() { return 'duckdb'; }
-        public function setDefaultConnection($name) {}
-        public function supportsExtending() { return false; }
-        public function extend($name, $resolver) {}
-    });
-
     $connection->getSchemaBuilder()->create('events', function (Blueprint $table) {
         $table->id();
         $table->string('category');
@@ -51,6 +43,16 @@ it('verifies examples from readme', function () {
         ->and($result->first()->revenue)->toBe(42.21)
         ->and($result->first()->tags)->toBe(['Hello, DuckDB' => 1]);
 
+    Event::setConnectionResolver(new class ($connection) implements ConnectionResolverInterface {
+        public function __construct(private $connection) {}
+        public function connection($connection = null)
+        {
+            return $this->connection;
+        }
+        public function getDefaultConnection() {}
+        public function setDefaultConnection($name) {}
+    });
+
     $event = new Event();
     $event->category = 'conference';
     $event->amount = 42.21;
@@ -61,7 +63,7 @@ it('verifies examples from readme', function () {
         ->and($event->category)->toBe('conference')
         ->and($event->amount)->toBe(42.21);
 
-    $events = Event::where('created_at', '>=', \Carbon\Carbon::now()->subWeek())->get();
+    $events = Event::where('created_at', '>=', '2026-01-01')->get();
     expect($events)->toHaveCount(1);
 
     $connection->getSchemaBuilder()->dropIfExists('events');

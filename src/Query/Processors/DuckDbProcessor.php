@@ -7,25 +7,15 @@ use Illuminate\Database\Query\Processors\Processor;
 
 class DuckDbProcessor extends Processor
 {
-    /**
-     * Process an "insert get ID" query.
-     *
-     * @param  \Illuminate\Database\Query\Builder  $query
-     * @param  string  $sql
-     * @param  array  $values
-     * @param  string|null  $sequence
-     * @return int
-     */
+    /** @inheritDoc */
     public function processInsertGetId(Builder $query, $sql, $values, $sequence = null)
     {
         $connection = $query->getConnection();
-
-        $connection->recordsHaveBeenModified();
-
-        $result = $connection->selectFromWriteConnection($sql, $values)[0];
-
+        if (method_exists($connection, 'recordsHaveBeenModified')) {
+            $connection->recordsHaveBeenModified();
+        }
+        $result = $connection->select($sql, $values, false)[0];
         $sequence = $sequence ?: 'id';
-
         $id = is_object($result) ? $result->{$sequence} : $result[$sequence];
 
         return is_numeric($id) ? (int) $id : $id;
@@ -36,9 +26,7 @@ class DuckDbProcessor extends Processor
     {
         return array_map(function ($result) {
             $result = (object) $result;
-
             $type = strtolower($result->type);
-
             $autoincrement = $result->default !== null && str_starts_with($result->default, 'nextval(');
 
             return [
@@ -62,7 +50,6 @@ class DuckDbProcessor extends Processor
 
         $indexes = array_map(function ($result) use (&$primaryCount) {
             $result = (object) $result;
-
             if ($isPrimary = (bool) ($result->primary ?? false)) {
                 $primaryCount += 1;
             }

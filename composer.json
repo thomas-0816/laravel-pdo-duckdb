@@ -1,6 +1,5 @@
 {
     "name": "thomas-0816/laravel-duckdb",
-    "version": "1.0.0",
     "description": "DuckDB driver for Laravel",
     "keywords": ["laravel", "duckdb", "database", "analytics"],
     "license": "MIT",

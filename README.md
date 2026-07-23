@@ -4,6 +4,8 @@ A [DuckDB](https://duckdb.org/) database driver for [Laravel](https://laravel.co
 
 Integrates DuckDB's analytical database engine into Laravel's Eloquent ORM and Schema Builder, enabling fast analytical queries directly from your Laravel application.
 
+<img width="500" height="273" alt="logo" src="logo.jpg" />
+
 ### Requirements
 
 - PHP 8.2+

@@ -1,6 +1,6 @@
 ## Laravel DuckDB
 
-A [DuckDB](https://duckdb.org/) database driver for [Laravel](https://laravel.com/).
+A [DuckDB](https://duckdb.org/) database driver for [Laravel](https://laravel.com/) powered by the [DuckDB PDO Driver](https://github.com/thomas-0816/pdo-duckdb-php).
 
 Integrates DuckDB's analytical database engine into Laravel's Eloquent ORM and Schema Builder, enabling fast analytical queries directly from your Laravel application.
 

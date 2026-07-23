@@ -29,27 +29,19 @@ class DuckDBBlueprint extends Blueprint
 
         $alterCommands = $this->grammar->getAlterCommands();
 
-        [$commands, $lastCommandWasAlter, $hasAlterCommand] = [
-            [], false, false,
-        ];
+        $commands = [];
+        $hasAlterCommand = false;
 
         foreach ($this->commands as $command) {
             if (in_array($command->name, $alterCommands)) {
                 $hasAlterCommand = true;
-                $lastCommandWasAlter = true;
-            } elseif ($lastCommandWasAlter) {
-                $commands[] = $this->createCommand('alter');
-                $lastCommandWasAlter = false;
             }
 
             $commands[] = $command;
         }
 
-        if ($lastCommandWasAlter) {
-            $commands[] = $this->createCommand('alter');
-        }
-
         if ($hasAlterCommand) {
+            $commands[] = $this->createCommand('alter');
             $this->state = new BlueprintState($this, $this->connection);
         }
 

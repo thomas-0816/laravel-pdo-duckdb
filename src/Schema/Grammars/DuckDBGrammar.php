@@ -7,9 +7,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\Grammars\Grammar;
 use Illuminate\Database\Schema\IndexDefinition;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Fluent;
-use PDO;
 use RuntimeException;
 
 class DuckDBGrammar extends Grammar
@@ -193,86 +191,16 @@ class DuckDBGrammar extends Grammar
         return $statements;
     }
 
-    /** @inheritDoc */
     public function getAlterCommands(): array
     {
-        return ['change', 'primary', 'dropPrimary', 'foreign', 'dropForeign'];
+        return [];
     }
 
     public function compileChange(Blueprint $blueprint, Fluent $command): ?string
     {
-        // Handled on table alteration...
-        return null;
-    }
-
-    /** @inheritDoc */
-    public function compileAlter(Blueprint $blueprint, Fluent $command): array
-    {
-        $columnNames = [];
-        $autoIncrementColumn = null;
-
-        $columns = (new Collection($blueprint->getState()->getColumns()))
-            ->map(function ($column) use ($blueprint, &$columnNames, &$autoIncrementColumn) {
-                $name = $this->wrap($column);
-
-                $autoIncrementColumn = $column->autoIncrement ? $column->name : $autoIncrementColumn;
-
-                if (is_null($column->virtualAs) && is_null($column->virtualAsJson)) {
-                    $columnNames[] = $name;
-                }
-
-                return $this->addModifiers(
-                    $this->wrap($column) . ' ' . ($column->full_type_definition ?? $this->getType($column)),
-                    $blueprint,
-                    $column
-                );
-            })->all();
-
-        $indexes = (new Collection($blueprint->getState()->getIndexes()))
-            ->reject(fn($index) => str_starts_with('duckdb_', $index->index))
-            ->map(fn($index) => $this->{'compile' . ucfirst($index->name)}($blueprint, $index))
-            ->all();
-
-        [, $tableName] = $this->connection->getSchemaBuilder()->parseSchemaAndTable($blueprint->getTable());
-        $tempTable = $this->wrapTable($blueprint, '__temp__' . $this->connection->getTablePrefix());
-        $table = $this->wrapTable($blueprint);
-        $columnNames = implode(', ', $columnNames);
-
-        $existingComments = $this->getExistingColumnComments($blueprint);
-        $existingTableComment = $this->getExistingTableComment($blueprint);
-
-        $statements = [];
-        $statements = array_merge($statements, array_filter([
-            sprintf(
-                'create table %s (%s%s%s)',
-                $tempTable,
-                implode(', ', $columns),
-                $this->addForeignKeys($blueprint->getState()->getForeignKeys()),
-                $autoIncrementColumn ? '' : $this->addPrimaryKeys($blueprint->getState()->getPrimaryKey())
-            ),
-            sprintf('insert into %s (%s) select %s from %s', $tempTable, $columnNames, $columnNames, $table),
-            sprintf('drop table %s', $table),
-            sprintf('alter table %s rename to %s', $tempTable, $this->wrapTable($tableName)),
-        ]));
-
-        if (! is_null($existingTableComment)) {
-            $statements[] = sprintf(
-                'comment on table %s is %s',
-                $table,
-                $this->quoteString($existingTableComment)
-            );
-        }
-
-        foreach ($existingComments as $column => $comment) {
-            $statements[] = sprintf(
-                'comment on column %s.%s is %s',
-                $table,
-                $this->wrap($column),
-                $this->quoteString($comment)
-            );
-        }
-
-        return array_merge($statements, $indexes);
+        throw new RuntimeException(
+            'DuckDB does not support changing column types. Use addColumn/dropColumn instead.'
+        );
     }
 
     public function compileUnique(Blueprint $blueprint, Fluent $command): string
@@ -339,10 +267,10 @@ class DuckDBGrammar extends Grammar
     {
         $table = $this->wrapTable($blueprint);
 
-        $columns = $this->prefixArray('drop column', $this->wrapArray($command->columns));
-
-        /** @var list<string> */
-        return array_map(fn($column) => 'alter table ' . $table . ' ' . $column, $columns);
+        return array_map(
+            fn ($column) => sprintf('alter table %s drop column %s', $table, $this->wrap($column)),
+            $command->columns
+        );
     }
 
     public function compileDropUnique(Blueprint $blueprint, Fluent $command): string
@@ -654,46 +582,6 @@ class DuckDBGrammar extends Grammar
             $this->wrapTable($blueprint),
             is_null($command->comment) ? 'NULL' : $this->quoteString($command->comment)
         );
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    protected function getExistingColumnComments(Blueprint $blueprint): array
-    {
-        [$schema, $table] = $this->connection->getSchemaBuilder()->parseSchemaAndTable($blueprint->getTable());
-
-        $statement = $this->connection->getPdo()->query(sprintf(
-            "select column_name, comment from duckdb_columns() where table_name = %s and schema_name = %s",
-            $this->quoteString($table),
-            $this->quoteString($schema ?? 'main')
-        ));
-
-        $comments = [];
-        if ($statement !== false) {
-            foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                if (! is_null($row['comment'])) {
-                    $comments[$row['column_name']] = $row['comment'];
-                }
-            }
-        }
-
-        return $comments;
-    }
-
-    protected function getExistingTableComment(Blueprint $blueprint): ?string
-    {
-        [$schema, $table] = $this->connection->getSchemaBuilder()->parseSchemaAndTable($blueprint->getTable());
-
-        $statement = $this->connection->getPdo()->query(sprintf(
-            "select comment from duckdb_tables() where table_name = %s and schema_name = %s",
-            $this->quoteString($table),
-            $this->quoteString($schema ?? 'main')
-        ));
-
-        $comment = $statement !== false ? $statement->fetchColumn() : null;
-
-        return $comment !== false ? (string) $comment : null;
     }
 
     protected function wrapJsonSelector($value): string

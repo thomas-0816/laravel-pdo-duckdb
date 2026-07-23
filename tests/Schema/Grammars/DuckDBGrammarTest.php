@@ -2660,17 +2660,17 @@ it('compileChange with collation on type change', function () {
 
     $connection->getSchemaBuilder()->create('chg_collate', function (Blueprint $table) {
         $table->integer('id')->unsigned();
-        $table->string('name');
+        $table->integer('code')->default(42);
     });
 
-    $connection->table('chg_collate')->insert([['id' => 1, 'name' => 'Alice'], ['id' => 2, 'name' => 'bob']]);
+    $connection->table('chg_collate')->insert([['id' => 1, 'code' => 100], ['id' => 2, 'code' => 200]]);
 
     $connection->getSchemaBuilder()->table('chg_collate', function (Blueprint $table) {
-        $table->string('name')->collation('nocase')->change();
+        $table->string('code')->default(21)->collation('nocase')->change();
     });
 
-    $result = $connection->getPdo()->query("SELECT name FROM chg_collate WHERE name = 'alice' ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
+    $result = $connection->getPdo()->query("SELECT code FROM chg_collate WHERE code = '100' ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
 
-    expect($result)->toBe(['Alice']);
-    expect($connection->table('chg_collate')->where('id', 2)->value('name'))->toBe('bob');
+    expect($result)->toBe(['100']);
+    expect($connection->table('chg_collate')->where('id', 2)->value('code'))->toBe('200');
 });

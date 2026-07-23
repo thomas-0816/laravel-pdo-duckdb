@@ -21,7 +21,7 @@
         "phpstan/phpstan": "^2.0",
         "friendsofphp/php-cs-fixer": "^3",
         "pestphp/pest": "^3.7",
-        "symfony/var-dumper": "^8.1"
+        "symfony/var-dumper": "^8 || ^7"
     },
     "autoload": {
         "psr-4": {

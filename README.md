@@ -1,6 +1,6 @@
 ## Laravel PDO DuckDB
 
-A [DuckDB](https://duckdb.org/) database driver for [Laravel](https://laravel.com/).
+A [DuckDB](https://duckdb.org) database driver for [Laravel](https://laravel.com) powered by the DuckDB PDO Driver.
 
 Integrates DuckDB's analytical database engine into Laravel's Eloquent ORM and Schema Builder, enabling fast analytical queries directly from your Laravel application.
 
@@ -25,8 +25,6 @@ pie install thomas-0816/pdo-duckdb-php
 ```
 
 ### Install Laravel PDO DuckDB with Composer
-
-Install `Laravel PDO DuckDB` with Composer:
 
 ```bash
 composer require thomas-0816/laravel-pdo-duckdb

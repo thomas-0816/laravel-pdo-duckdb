@@ -69,7 +69,7 @@ For testing or reading external files, use the special in-memory database:
 ],
 ```
 
-## Schema Builder
+### Schema Builder
 
 ```php
 use Illuminate\Database\Schema\Blueprint;

@@ -28,6 +28,12 @@ class TestCsv extends Model
     protected $table = '/tmp/test.csv';
 }
 
+class LogsJson extends Model
+{
+    protected $connection = 'duckdb';
+    protected $table = '/tmp/logs.json';
+}
+
 it('verifies examples from readme', function () {
     $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
     $connection->getSchemaBuilder()->create('events', function (Blueprint $table) {
@@ -110,4 +116,35 @@ it('verifies examples from readme, csv files', function () {
     $result = TestCsv::select('aaa')->get()->toArray();
     expect($result[0])->toBe(['aaa' => '123']);
     expect($result[1])->toBe(['aaa' => 'ddd']);
+});
+
+it('verifies examples from readme, json files', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    file_put_contents('/tmp/logs.json', json_encode(['log' => 'log text']) . PHP_EOL, FILE_APPEND);
+    file_put_contents('/tmp/logs.json', json_encode(['log' => 'log text 2']) . PHP_EOL, FILE_APPEND);
+
+    $result = $connection->query()
+        ->select('log')
+        ->from('/tmp/logs.json')
+        ->get()
+        ->toArray();
+    expect((array) $result[0])->toBe(['log' => 'log text']);
+    expect((array) $result[1])->toBe(['log' => 'log text 2']);
+
+    $connection->statement("COPY (SELECT * FROM '/tmp/logs.json') TO '/tmp/logs_json.parquet' (COMPRESSION zstd)");
+
+    $result = $connection->query()
+        ->select('log')
+        ->from('/tmp/logs_json.parquet')
+        ->get()
+        ->toArray();
+
+    expect((array) $result[0])->toBe(['log' => 'log text']);
+    expect((array) $result[1])->toBe(['log' => 'log text 2']);
+
+    LogsJson::setConnectionResolver(new Resolver($connection));
+    $result = LogsJson::select('log')->get()->toArray();
+    expect($result[0])->toBe(['log' => 'log text']);
+    expect($result[1])->toBe(['log' => 'log text 2']);
 });

@@ -1,4 +1,4 @@
-## Laravel PDO DuckDB
+# Laravel PDO DuckDB
 
 A [DuckDB](https://duckdb.org) database driver for [Laravel](https://laravel.com) powered by the DuckDB PDO Driver.
 
@@ -6,13 +6,13 @@ Integrates DuckDB's analytical database engine into Laravel's Eloquent ORM and S
 
 <img width="500" height="273" alt="logo" src="logo.jpg" />
 
-### Requirements
+## Requirements
 
 - PHP 8.2+
 - Laravel 12+
 - pdo_duckdb PHP extension
 
-### Install and setup Laravel PDO DuckDB
+## Install and setup Laravel PDO DuckDB
 
 Install and setup [pdo_duckdb](https://github.com/thomas-0816/pdo-duckdb-php) database driver with [PIE](https://github.com/php/pie):
 
@@ -34,7 +34,7 @@ It is also thread safe and fully tested with FrankenPHP (PHP-ZTS).\
 The release packages contain pre-compiled binaries for all supported platforms and DuckDB is directly included.\
 DuckDB extensions work the same way as they do in DuckDB CLI.
 
-### Configuration
+## Configuration
 
 Add a `duckdb` connection to your `config/database.php`:
 
@@ -53,7 +53,7 @@ Add a `duckdb` connection to your `config/database.php`:
 ],
 ```
 
-### In-Memory Database
+## In-Memory Database
 
 For testing or reading external files, use the special in-memory database:
 
@@ -69,7 +69,7 @@ For testing or reading external files, use the special in-memory database:
 ],
 ```
 
-### Schema Builder
+## Schema Builder
 
 ```php
 use Illuminate\Database\Schema\Blueprint;
@@ -93,7 +93,7 @@ Schema::connection('duckdb')->dropSequence('seq_events_id');
 Schema::connection('duckdb')->dropIfExists('events');
 ```
 
-### Query Builder Insert
+## Query Builder Insert
 
 ```php
 use Illuminate\Support\Facades\DB;
@@ -107,7 +107,7 @@ DB::connection('duckdb')->table('events')->insert([[
 ]]);
 ```
 
-### Query Builder Select
+## Query Builder Select
 
 ```php
 use Illuminate\Support\Facades\DB;
@@ -124,7 +124,7 @@ $result = DB::connection('duckdb')->query()
 dump($result->toArray());
 ```
 
-### Eloquent Models
+## Eloquent Models
 
 Models can be directly used by specifying the connection "duckdb":
 
@@ -154,7 +154,7 @@ $events = Event::where('created_at', '>=', now()->subWeek())->get();
 dump($events->toArray());
 ```
 
-### Read CSV files with DuckDB SQL
+## Read CSV files with DuckDB SQL
 
 Query Builder:
 
@@ -179,16 +179,10 @@ $result = DB::connection('duckdb')->query()
 print_r($result->toArray());
 
 # Array
-# (
 #     [0] => stdClass Object
-#         (
-#             [aaa] => 123
-#         )
+#         [aaa] => 123
 #     [1] => stdClass Object
-#         (
-#             [aaa] => aaa
-#         )
-# )
+#         [aaa] => aaa
 ```
 
 Eloquent models:
@@ -222,19 +216,74 @@ $rows = TestCsv::select('aaa')->get();
 dump($rows->toArray());
 
 # Array
-# (
 #     [0] => Array
-#         (
-#             [aaa] => 123
-#         )
+#         [aaa] => 123
 #     [1] => Array
-#         (
-#             [aaa] => ddd
-#         )
-# )
+#         [aaa] => ddd
 ```
 
-### Schema Dump
+## Read JSON files with DuckDB SQL
+
+Query Builder:
+
+```php
+use Illuminate\Support\Facades\DB;
+
+file_put_contents('/tmp/logs.json', json_encode(['log' => 'log text']) . PHP_EOL, FILE_APPEND);
+file_put_contents('/tmp/logs.json', json_encode(['log' => 'log text 2']) . PHP_EOL, FILE_APPEND);
+
+$result = DB::connection('duckdb')->query()
+    ->select('log')
+    ->from('/tmp/logs.json') // or multiple files using '/tmp/*.json'
+    ->get();
+print_r($result->toArray());
+
+# Array
+#     [0] => stdClass Object
+#         [log] => log text
+#     [1] => stdClass Object
+#         [log] => log text 2
+
+// Convert JSON file to PARQUET file
+DB::connection('duckdb')->statement("COPY (SELECT * FROM '/tmp/logs.json') TO '/tmp/logs_json.parquet' (COMPRESSION zstd)");
+
+$result = DB::connection('duckdb')->query()
+    ->select('log')
+    ->from('/tmp/logs_json.parquet')
+    ->get();
+print_r($result->toArray());
+
+# Array
+#     [0] => stdClass Object
+#         [log] => log text
+#     [1] => stdClass Object
+#         [log] => log text 2
+```
+
+Eloquent models:
+
+```php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class LogsJson extends Model
+{
+    protected $connection = 'duckdb';
+    protected $table = '/tmp/logs.json'; // or multiple files using '/tmp/*.json'
+}
+
+$rows = LogsJson::select('log')->get();
+dump($rows->toArray());
+
+# Array
+#     [0] => Array
+#         [log] => log text
+#     [1] => Array
+#         [log] => log text 2
+```
+
+## Schema Dump
 
 The package supports `schema:dump` Artisan command using DuckDB's `EXPORT DATABASE` SQL statement via PDO:
 
@@ -242,7 +291,7 @@ The package supports `schema:dump` Artisan command using DuckDB's `EXPORT DATABA
 php artisan schema:dump --database=duckdb # creates ./database/schema/duckdb-schema.sql
 ```
 
-### Query Debugging
+## Query Debugging
 
 You can add this line at the beginning of your script for local query debugging:
 
@@ -250,7 +299,7 @@ You can add this line at the beginning of your script for local query debugging:
 \Illuminate\Support\Facades\DB::listen(fn ($query) => dump($query));
 ```
 
-### Development
+## Development
 
 Testing:
 
@@ -259,7 +308,7 @@ composer test
 ./vendor/bin/pest --coverage
 ```
 
-### Why DuckDB?
+## Why DuckDB?
 
 In-Process Architecture: Like SQLite, DuckDB embeds directly into host applications, eliminating the need for a separate server setup.
 
@@ -292,10 +341,10 @@ This ensures queries only scan necessary data and avoids full-table sorting when
 
 Direct File Querying: You can query large datasets in open formats like Parquet and CSV directly on disk or in cloud storage (like AWS S3) without needing to import or convert the data first.
 
-### AI Disclosure
+## AI Disclosure
 
 The code is written by AI, reviewed and tested without AI.
 
-### License
+## License
 
 MIT

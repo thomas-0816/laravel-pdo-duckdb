@@ -62,6 +62,9 @@ For testing, use the special in-memory database:
     'duckdb' => [
         'driver'   => 'duckdb',
         'database' => ':memory:',
+        'options' => [
+            PDO::DUCKDB_ATTR_CONFIG => ['TimeZone' => 'Europe/Berlin']
+        ],
     ],
 ],
 ```

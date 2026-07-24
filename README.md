@@ -10,27 +10,29 @@ Integrates DuckDB's analytical database engine into Laravel's Eloquent ORM and S
 
 - PHP 8.2+
 - Laravel 12+
-- `pdo_duckdb` PHP extension
+- pdo_duckdb PHP extension
 
-### Install and setup pdo_duckdb PHP extension with [PIE](https://github.com/php/pie)
+### Install and setup Laravel PDO DuckDB
 
-[pdo_duckdb](https://github.com/thomas-0816/pdo-duckdb-php) is a native DuckDB database driver for the PHP Data Objects (PDO) interface.\
-As a native PHP extension, it is implemented in C/C++ and does not require PHP FFI or preloading.\
-It is also thread safe and fully tested with FrankenPHP (PHP-ZTS).\
-The release packages contain pre-compiled binaries for all supported platforms and DuckDB is directly included.\
-DuckDB extensions work the same way as they do in DuckDB CLI.
+Install and setup [pdo_duckdb](https://github.com/thomas-0816/pdo-duckdb-php) database driver with [PIE](https://github.com/php/pie):
 
 ```bash
 pie install thomas-0816/pdo-duckdb-php
 ```
 
-### Install Laravel PDO DuckDB with Composer
+Install and setup Laravel PDO DuckDB database driver:
 
 ```bash
 composer require thomas-0816/laravel-pdo-duckdb
 
 php artisan package:discover
 ```
+
+`pdo_duckdb` is a native DuckDB database driver for the PHP Data Objects (PDO) interface.\
+As a native PHP extension, it is implemented in C/C++ and does not require PHP FFI or preloading.\
+It is also thread safe and fully tested with FrankenPHP (PHP-ZTS).\
+The release packages contain pre-compiled binaries for all supported platforms and DuckDB is directly included.\
+DuckDB extensions work the same way as they do in DuckDB CLI.
 
 ### Configuration
 
@@ -150,6 +152,14 @@ The package supports `schema:dump` Artisan command using DuckDB's `EXPORT DATABA
 
 ```bash
 php artisan schema:dump --database=duckdb # creates ./database/schema/duckdb-schema.sql
+```
+
+### Query Debugging
+
+You can add this line at the beginning of your script for local query debugging:
+
+```bash
+\Illuminate\Support\Facades\DB::listen(fn ($query) => dump($query));
 ```
 
 ### Development

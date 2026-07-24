@@ -154,7 +154,7 @@ $events = Event::where('created_at', '>=', now()->subWeek())->get();
 dump($events->toArray());
 ```
 
-## Read CSV files with DuckDB SQL
+## Read CSV files with SQL
 
 Query Builder:
 
@@ -222,7 +222,7 @@ dump($rows->toArray());
 #         [aaa] => ddd
 ```
 
-## Read JSON files with DuckDB SQL
+## Read JSON files with SQL
 
 Query Builder:
 

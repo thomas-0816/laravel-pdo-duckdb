@@ -180,13 +180,13 @@ print_r($result->toArray());
 
 # Array
 # (
-#     [0] => Array
+#     [0] => stdClass Object
 #         (
 #             [aaa] => 123
 #         )
-#     [1] => Array
+#     [1] => stdClass Object
 #         (
-#             [aaa] => ddd
+#             [aaa] => aaa
 #         )
 # )
 ```
@@ -223,13 +223,13 @@ dump($rows->toArray());
 
 # Array
 # (
-#     [0] => stdClass Object
+#     [0] => Array
 #         (
 #             [aaa] => 123
 #         )
-#     [1] => stdClass Object
+#     [1] => Array
 #         (
-#             [aaa] => aaa
+#             [aaa] => ddd
 #         )
 # )
 ```

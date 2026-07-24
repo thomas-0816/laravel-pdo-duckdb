@@ -5,10 +5,27 @@ use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 
+class Resolver implements ConnectionResolverInterface
+{
+    public function __construct(private DuckDbConnection $connection) {}
+    public function connection($connection = null)
+    {
+        return $this->connection;
+    }
+    public function getDefaultConnection() {}
+    public function setDefaultConnection($name) {}
+}
+
 class Event extends Model
 {
     protected $connection = 'duckdb';
     protected $table = 'events';
+}
+
+class TestCsv extends Model
+{
+    protected $connection = 'duckdb';
+    protected $table = '/tmp/test.csv';
 }
 
 it('verifies examples from readme', function () {
@@ -43,16 +60,7 @@ it('verifies examples from readme', function () {
         ->and($result->first()->revenue)->toBe(42.21)
         ->and($result->first()->tags)->toBe(['Hello, DuckDB' => 1]);
 
-    Event::setConnectionResolver(new class ($connection) implements ConnectionResolverInterface {
-        public function __construct(private $connection) {}
-        public function connection($connection = null)
-        {
-            return $this->connection;
-        }
-        public function getDefaultConnection() {}
-        public function setDefaultConnection($name) {}
-    });
-
+    Event::setConnectionResolver(new Resolver($connection));
     $event = new Event();
     $event->category = 'conference';
     $event->amount = 42.21;
@@ -74,4 +82,32 @@ it('verifies examples from readme', function () {
     $connection->getSchemaBuilder()->createSequence('seq_events_id', 1, 1);
     $sequences = $connection->getPdo()->query("select * from duckdb_sequences()")->fetchAll(PDO::FETCH_ASSOC);
     expect($sequences)->not->toBeEmpty();
+});
+
+it('verifies examples from readme, csv files', function () {
+    $connection = new DuckDbConnection(fn() => new PDO('duckdb::memory:'));
+
+    $list = [
+        ['aaa', 'bbb', 'ccc'],
+        ['123', '456', '789'],
+        ['ddd', 'eee', 'fff'],
+    ];
+    $fp = fopen('/tmp/test.csv', 'w');
+    foreach ($list as $fields) {
+        fputcsv($fp, $fields, ',', '"', "");
+    }
+    fclose($fp);
+
+    $result = $connection->query()
+        ->select('aaa')
+        ->from('/tmp/test.csv')
+        ->get()
+        ->toArray();
+    expect((array) $result[0])->toBe(['aaa' => '123']);
+    expect((array) $result[1])->toBe(['aaa' => 'ddd']);
+
+    TestCsv::setConnectionResolver(new Resolver($connection));
+    $result = TestCsv::select('aaa')->get()->toArray();
+    expect($result[0])->toBe(['aaa' => '123']);
+    expect($result[1])->toBe(['aaa' => 'ddd']);
 });

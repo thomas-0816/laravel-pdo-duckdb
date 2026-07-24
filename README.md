@@ -46,8 +46,10 @@ Add a `duckdb` connection to your `config/database.php`:
         'options' => [
             PDO::DUCKDB_ATTR_CONFIG => [
                 'TimeZone' => 'Europe/Berlin',
-                // 'access_mode' => 'read_only'
-            ]
+                // 'threads' => 4, # max. number of threads
+                // 'memory_limit' => '4GB', # max. memory usage
+                // 'access_mode' => 'read_only', # open database file read-only
+            ],
         ],
     ],
 ],
@@ -55,7 +57,7 @@ Add a `duckdb` connection to your `config/database.php`:
 
 ## In-Memory Database
 
-For testing or reading external files, use the special in-memory database:
+For testing or reading external files, use the special in-memory database in `config/database.php`:
 
 ```php
 'connections' => [
@@ -63,7 +65,11 @@ For testing or reading external files, use the special in-memory database:
         'driver'   => 'duckdb',
         'database' => ':memory:',
         'options' => [
-            PDO::DUCKDB_ATTR_CONFIG => ['TimeZone' => 'Europe/Berlin']
+            PDO::DUCKDB_ATTR_CONFIG => [
+                'TimeZone' => 'Europe/Berlin',
+                // 'threads' => 4, # max. number of threads
+                // 'memory_limit' => '4GB', # max. memory usage
+            ],
         ],
     ],
 ],
@@ -301,6 +307,28 @@ You can add this line at the beginning of your script for local query debugging:
 ```bash
 \Illuminate\Support\Facades\DB::listen(fn ($query) => dump($query));
 ```
+
+## Security
+
+Use SQL `SET variable = value;` or put the settings inside the PDO::DUCKDB_ATTR_CONFIG connection [options array](#Configuration):
+
+```sql
+# Disable extension loading
+SET autoload_known_extensions = false;
+SET autoinstall_known_extensions = false;
+SET allow_community_extensions = false;
+
+# Disable external file access, directory white listing
+SET allowed_directories = ['/tmp'];
+SET enable_external_access = false;
+
+# Resource limits
+SET threads = 4;
+SET memory_limit = '4GB';
+SET max_temp_directory_size = '4GB';
+```
+
+A complete list is available in the DuckDB documentation: [Securing DuckDB](https://duckdb.org/docs/lts/operations_manual/securing_duckdb/overview).
 
 ## Development
 

@@ -55,7 +55,7 @@ Add a `duckdb` connection to your `config/database.php`:
 
 ### In-Memory Database
 
-For testing, use the special in-memory database:
+For testing or reading external files, use the special in-memory database:
 
 ```php
 'connections' => [

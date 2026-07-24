@@ -273,6 +273,9 @@ class LogsJson extends Model
     protected $table = '/tmp/logs.json'; // or multiple files using '/tmp/*.json'
 }
 
+file_put_contents('/tmp/logs.json', json_encode(['log' => 'log text']) . PHP_EOL, FILE_APPEND);
+file_put_contents('/tmp/logs.json', json_encode(['log' => 'log text 2']) . PHP_EOL, FILE_APPEND);
+
 $rows = LogsJson::select('log')->get();
 dump($rows->toArray());
 

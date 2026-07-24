@@ -245,7 +245,7 @@ print_r($result->toArray());
 #         [log] => log text 2
 
 // Convert JSON file to PARQUET file
-DB::connection('duckdb')->statement("COPY (SELECT * FROM '/tmp/logs.json') TO '/tmp/logs_json.parquet' (COMPRESSION zstd)");
+DB::connection('duckdb')->statement("COPY (SELECT * FROM '/tmp/logs.json') TO '/tmp/logs_json.parquet'");
 
 $result = DB::connection('duckdb')->query()
     ->select('log')

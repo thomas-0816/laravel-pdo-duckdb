@@ -350,4 +350,4 @@ The code is written by AI, reviewed and tested without AI.
 
 ## License
 
-MIT
+MIT License

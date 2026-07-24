@@ -43,7 +43,12 @@ Add a `duckdb` connection to your `config/database.php`:
     'duckdb' => [
         'driver'   => 'duckdb',
         'database' => env('DB_DATABASE', database_path('analytics.duckdb')),
-        'options' => [PDO::DUCKDB_ATTR_CONFIG => ['TimeZone' => 'Europe/Berlin']],
+        'options' => [
+            PDO::DUCKDB_ATTR_CONFIG => [
+                'TimeZone' => 'Europe/Berlin',
+                // 'access_mode' => 'read_only'
+            ]
+        ],
     ],
 ],
 ```
@@ -144,6 +149,86 @@ dump($event->toArray());
 
 $events = Event::where('created_at', '>=', now()->subWeek())->get();
 dump($events->toArray());
+```
+
+### Read CSV files with DuckDB SQL
+
+Query Builder:
+
+```php
+use Illuminate\Support\Facades\DB;
+
+$list = [
+    ['aaa', 'bbb', 'ccc'],
+    ['123', '456', '789'],
+    ['ddd', 'eee', 'fff'],
+];
+$fp = fopen('/tmp/test.csv', 'w');
+foreach ($list as $fields) {
+    fputcsv($fp, $fields, ',', '"', "");
+}
+fclose($fp);
+
+$result = DB::connection('duckdb')->query()
+    ->select('aaa')
+    ->from('/tmp/test.csv') // or multiple files using '/tmp/*.csv'
+    ->get();
+print_r($result->toArray());
+
+# Array
+# (
+#     [0] => Array
+#         (
+#             [aaa] => 123
+#         )
+#     [1] => Array
+#         (
+#             [aaa] => ddd
+#         )
+# )
+```
+
+Eloquent models:
+
+```php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class TestCsv extends Model
+{
+    protected $connection = 'duckdb';
+    protected $table = '/tmp/test.csv'; // or multiple files using '/tmp/*.csv'
+}
+```
+
+```php
+use App\Models\TestCsv;
+
+$list = [
+    ['aaa', 'bbb', 'ccc'],
+    ['123', '456', '789'],
+];
+$fp = fopen('/tmp/test.csv', 'w');
+foreach ($list as $fields) {
+    fputcsv($fp, $fields, ',', '"', "");
+}
+fclose($fp);
+
+$rows = TestCsv::select('aaa')->get();
+dump($rows->toArray());
+
+# Array
+# (
+#     [0] => stdClass Object
+#         (
+#             [aaa] => 123
+#         )
+#     [1] => stdClass Object
+#         (
+#             [aaa] => aaa
+#         )
+# )
 ```
 
 ### Schema Dump
